@@ -7,10 +7,13 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 import streamlit as st
 from core.data import get_full_label, load_labels
+from core.rounds import round_label, usable_rounds
+from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
 
 def render():
+    store = get_store()
     display_header_with_logo("🖨️ Nomination Labels Druckzentrale")
     st.write("Generiere hier die exakten Druck-Labels (8 Stück pro A4-Seite). Jede Klasse beginnt ein neues Blatt.")
 
@@ -36,22 +39,17 @@ def render():
         if 'KLASSE_INTERNAL' in df_full.columns: sort_spalten.append('KLASSE_INTERNAL')
         sort_spalten.append('_sort_nr_helper')
 
-        if 'SELECTION 1' in df_full.columns:
-            df_samstag_daten = df_full[df_full['SELECTION 1'].astype(str).str.strip().str.upper() == 'X'].sort_values(by=sort_spalten).copy()
-        elif 'SELECTION' in df_full.columns:
-            df_samstag_daten = df_full[df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X'].sort_values(by=sort_spalten).copy()
-        else:
-            df_samstag_daten = pd.DataFrame(columns=df_full.columns)
-            
-        if 'SELECTION 2' in df_full.columns:
-            df_sonntag_daten = df_full[df_full['SELECTION 2'].astype(str).str.strip().str.upper() == 'X'].sort_values(by=sort_spalten).copy()
-        else:
-            df_sonntag_daten = pd.DataFrame(columns=df_full.columns)
-
-        # Aufräumen der Hilfsspalte, damit sie nicht in der App stört
-        if not df_samstag_daten.empty: df_samstag_daten.drop(columns=['_sort_nr_helper'], errors='ignore', inplace=True)
-        if not df_sonntag_daten.empty: df_sonntag_daten.drop(columns=['_sort_nr_helper'], errors='ignore', inplace=True)
-
+        # Pro Runde (Gelb/Grün/Rot) die nominierten Katzen aus SELECTION 1/2/3 holen
+        runden = usable_rounds(store, df_full)
+        daten = {}
+        for n in runden:
+            sel_col = f"SELECTION {n}"
+            if sel_col in df_full.columns:
+                df_n = df_full[df_full[sel_col].astype(str).str.strip().str.upper() == 'X'].sort_values(by=sort_spalten).copy()
+                df_n.drop(columns=['_sort_nr_helper'], errors='ignore', inplace=True)
+            else:
+                df_n = pd.DataFrame(columns=df_full.columns)
+            daten[n] = df_n
 
     
     
@@ -208,80 +206,30 @@ def render():
             buffer.seek(0)
             return buffer.getvalue()
 
-        # Tabs für die Tagestrennung
-        tab_tag1, tab_tag2 = st.tabs(["Tag 1 (Samstag)", "Tag 2 (Sonntag)"])
-        
-        # =====================================================================
-        # TAB FÜR TAG 1 (SAMSTAG)
-        # =====================================================================
-        with tab_tag1:
-            if not df_samstag_daten.empty:
-                st.info(f"Aktuell sind **{len(df_samstag_daten)}** Katzen für den Labeldruck an Tag 1 bereit.")
-                
-                pdf_labels_t1 = generate_avery_labels(df_samstag_daten.copy())
-                st.download_button(
-                    label="📥 Avery Zweckform (4782) PDF generieren & herunterladen (Tag 1)",
-                    data=pdf_labels_t1,
-                    file_name="KECB_Nomination_Labels_Sorted_Tag1.pdf",
-                    mime="application/pdf",
-                    key="dl_btn_t1"
-                )
-                
-                st.write("### Vorschau der enthaltenen Katzen (Tag 1):")
-                spalten_t1 = [c for c in ['KAT_STR', 'KATEGORIE', 'KLASSE_INTERNAL', 'GESCHLECHT', 'RASSE', 'FARBE'] if c in df_samstag_daten.columns]
-                namen_t1 = {"KAT_STR": "Kat.-Nr.", "KATEGORIE": "Kategorie", "KLASSE_INTERNAL": "Klasse", "GESCHLECHT": "Geschlecht", "RASSE": "Rasse", "FARBE": "Farbe"}
-                config_t1 = {c: namen_t1[c] for c in spalten_t1 if c in namen_t1}
-                
-                # Hier sortieren wir die Daten direkt im Aufruf mit reinen Leerzeichen für die Einrückung
-                st.dataframe(df_samstag_daten[spalten_t1].sort_values(by='KAT_STR', key=lambda x: pd.to_numeric(x, errors='coerce')), column_config=config_t1, use_container_width=True, hide_index=True, key="preview_table_samstag_final")
-                
-            else:
-                st.info("Aktuell sind keine Katzen für den Labeldruck an Tag 1 (Spalte 'SELECTION 1') bereit.")
+        # Ein Tab pro Runde
+        tabs = st.tabs([round_label(n) for n in runden])
+        for tab, n in zip(tabs, runden):
+            with tab:
+                df_n = daten[n]
+                if not df_n.empty:
+                    st.info(f"Aktuell sind **{len(df_n)}** Katzen für den Labeldruck in {round_label(n)} bereit.")
+                    st.download_button(
+                        label=f"📥 Avery Zweckform (4782) PDF generieren & herunterladen ({round_label(n, with_emoji=False)})",
+                        data=generate_avery_labels(df_n.copy()),
+                        file_name=f"KECB_Nomination_Labels_Sorted_Tag{n}.pdf",
+                        mime="application/pdf",
+                        key=f"dl_btn_t{n}"
+                    )
+                    st.write(f"### Vorschau der enthaltenen Katzen ({round_label(n, with_emoji=False)}):")
+                    spalten = [c for c in ['KAT_STR', 'KATEGORIE', 'KLASSE_INTERNAL', 'GESCHLECHT', 'RASSE', 'FARBE'] if c in df_n.columns]
+                    namen = {"KAT_STR": "Kat.-Nr.", "KATEGORIE": "Kategorie", "KLASSE_INTERNAL": "Klasse", "GESCHLECHT": "Geschlecht", "RASSE": "Rasse", "FARBE": "Farbe"}
+                    config = {c: namen[c] for c in spalten if c in namen}
+                    st.dataframe(df_n[spalten].sort_values(by='KAT_STR', key=lambda x: pd.to_numeric(x, errors='coerce')),
+                                 column_config=config, use_container_width=True, hide_index=True,
+                                 key=f"preview_table_runde_{n}")
+                else:
+                    st.info(f"Aktuell sind keine Katzen für den Labeldruck in {round_label(n)} (Spalte 'SELECTION {n}') bereit.")
 
-        # =====================================================================
-        # TAB FÜR TAG 2 (SONNTAG)
-        # =====================================================================
-        with tab_tag2:
-            if not df_sonntag_daten.empty:
-                st.info(f"Aktuell sind **{len(df_sonntag_daten)}** Katzen für den Labeldruck an Tag 2 bereit.")
-                
-                pdf_labels_t2 = generate_avery_labels(df_sonntag_daten.copy())
-                st.download_button(
-                    label="📥 Avery Zweckform (4782) PDF generieren & herunterladen (Tag 2)",
-                    data=pdf_labels_t2,
-                    file_name="KECB_Nomination_Labels_Sorted_Tag2.pdf",
-                    mime="application/pdf",
-                    key="dl_btn_t2"
-                )
-                
-                st.write("### Vorschau der enthaltenen Katzen (Tag 2):")
-                
-                # --- AB HIER ERSETZEN ---
-                spalten_t2 = [c for c in ['KAT_STR', 'KATEGORIE', 'KLASSE_INTERNAL', 'GESCHLECHT', 'RASSE', 'FARBE'] if c in df_sonntag_daten.columns]
-                namen_t2 = {"KAT_STR": "Kat.-Nr.", "KATEGORIE": "Kategorie", "KLASSE_INTERNAL": "Klasse", "GESCHLECHT": "Geschlecht", "RASSE": "Rasse", "FARBE": "Farbe"}
-                config_t2 = {c: namen_t2[c] for c in spalten_t2 if c in namen_t2}
-                
-                # Wir erstellen die Struktur für die Anzeige (die künstliche Spalte 'TAG' wurde hier entfernt!)
-                df_sonntag_vorschau = df_sonntag_daten[spalten_t2].copy()
-                                
-                # Hier sortieren wir die fertige Sonntag-Vorschau direkt beim Anzeigen
-                st.dataframe(
-                    df_sonntag_vorschau.sort_values(by='KAT_STR', key=lambda x: pd.to_numeric(x, errors='coerce')), 
-                    column_config=config_t2, 
-                    use_container_width=True, 
-                    hide_index=True, 
-                    key="voneinander_getrennte_sonntags_tabelle"
-                )
-                # --- BIS HIER ERSETZEN ---
-
-                
-            
-
-                
-            else:
-                st.info("Aktuell sind keine Katzen für den Labeldruck an Tag 2 (Spalte 'SELECTION 2') bereit.")
-
-            
         if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_labels"):
             set_view("Home")
 

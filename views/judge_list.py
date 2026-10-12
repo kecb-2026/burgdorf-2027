@@ -3,10 +3,13 @@
 import pandas as pd
 import streamlit as st
 from core.data import load_labels, real_judges
+from core.rounds import round_label, usable_rounds
+from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
 
 def render():
+    store = get_store()
     display_header_with_logo("📊 Judge Book")
     st.write("Sieh sofort, welche Katzen in den jeweiligen Klassen direkt gegeneinander antreten.")
     
@@ -115,14 +118,12 @@ def render():
             else:
                 st.info("Bitte wähle einen Richter aus der Liste aus, um die Judge List anzuzeigen.")
 
-        # Hier werden die Tabs generiert
-        tab_tag1, tab_tag2 = st.tabs(["Tag 1 (Samstag)", "Tag 2 (Sonntag)"])
-        
-        with tab_tag1:
-            render_judge_table("TAG 1", "RICHTER TAG 1", "t1")
-            
-        with tab_tag2:
-            render_judge_table("TAG 2", "RICHTER TAG 2", "t2")
+        # Ein Tab pro Runde (Gelb / Grün / Rot)
+        runden = usable_rounds(store, df_full)
+        tabs = st.tabs([round_label(n) for n in runden])
+        for tab, n in zip(tabs, runden):
+            with tab:
+                render_judge_table(f"TAG {n}", f"RICHTER TAG {n}", f"t{n}")
             
     if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_judgebook"):
         set_view("Home")

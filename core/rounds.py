@@ -125,3 +125,8 @@ def busy_elsewhere(store, nr, judge):
 def round_on_color(n):
     """Schriftfarbe, die auf der Rundenfarbe gut lesbar ist."""
     return ROUNDS.get(int(n), ROUNDS[1]).get("on_color", "#ffffff")
+
+
+def usable_rounds(store, df):
+    """Aktive Runden, fuer die das Excel die passenden Spalten hat (TAG n bzw. SELECTION n)."""
+    return [n for n in active_rounds(store) if f"TAG {n}" in df.columns or f"SELECTION {n}" in df.columns]

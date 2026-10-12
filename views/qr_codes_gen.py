@@ -14,7 +14,8 @@ from reportlab.platypus import TableStyle
 import qrcode
 import streamlit as st
 from core.config import BASE_URL, SHOW_YEAR
-from core.data import load_labels, real_judges
+from core.data import load_labels
+from core.rounds import all_judges
 from core.ui import display_header_with_logo, set_view
 
 
@@ -76,29 +77,15 @@ def render():
         # --- AB HIER NUR NOCH DIE LISTEN FÜR STUFENWEISE RASTER SAMMELN ---
         all_qr_items = []
         
-        # --- Daten sammeln: Tag 1 ---
-        if df is not None and 'RICHTER TAG 1' in df.columns:
-            judges_t1 = sorted(real_judges(df['RICHTER TAG 1']))
-            for judge in judges_t1:
-                # Stewards Tag 1
-                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=1"
-                all_qr_items.append((f"Steward fuer: {judge}", stew_url, "2. Steward-Links fuer TAG 1 (Samstag)"))
-                
-                # Richter Direkt Tag 1
-                j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=1"
-                all_qr_items.append((f"Richter: {judge} (Tag 1)", j_url, "3. Richter-Direkt-Links fuer TAG 1 (Samstag)"))
-                
-        # --- Daten sammeln: Tag 2 ---
-        if df is not None and 'RICHTER TAG 2' in df.columns:
-            judges_t2 = sorted(real_judges(df['RICHTER TAG 2']))
-            for judge in judges_t2:
-                # Stewards Tag 2
-                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=2"
-                all_qr_items.append((f"Steward fuer: {judge}", stew_url, "4. Steward-Links fuer TAG 2 (Sonntag)"))
-                
-                # Richter Direkt Tag 2
-                j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=2"
-                all_qr_items.append((f"Richter: {judge} (Tag 2)", j_url, "5. Richter-Direkt-Links fuer TAG 2 (Sonntag)"))
+        # --- Daten sammeln: ein QR-Code pro Richter (gilt fuer alle Runden) ---
+        # Die Runde eines Richters steuert die Ausstellungsleitung im Rundenmanager.
+        if df is not None:
+            for judge in all_judges(df):
+                jp = judge.replace(' ', '+')
+                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={jp}"
+                all_qr_items.append((f"Steward fuer: {judge}", stew_url, "2. Steward-Links (alle Runden)"))
+                j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={jp}"
+                all_qr_items.append((f"Richter: {judge}", j_url, "3. Richter-Direkt-Links (alle Runden)"))
         
         # --- Grid im PDF generieren ---
         unique_sections = list(dict.fromkeys([item[2] for item in all_qr_items]))
@@ -169,7 +156,8 @@ def render():
     st.divider()
 
     # Registerkarten für die Übersichtlichkeit (Web-Ansicht)
-    tab1, tab2, tab3 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter (Tag 1)", "👨‍⚖️ Richter (Tag 2)"])
+    tab1, tab2 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter"])
+    judges_alle = all_judges(df_full) if df_full is not None else []
     
     # ---------------- TAB 1: STEWARDS & ADMINS ----------------
     with tab1:
@@ -183,86 +171,32 @@ def render():
             
         st.divider()
         
-        if df_full is not None:
-            # --- SEKTION: TAG 1 ---
-            st.markdown("### 📝 Steward-Links für TAG 1 (Samstag)")
-            st.write("Diese QR-Codes filtern fest auf die Richter von Tag 1:")
-            
-            if 'RICHTER TAG 1' in df_full.columns:
-                judges_t1 = sorted(real_judges(df_full['RICHTER TAG 1']))
-                if judges_t1:
-                    s_cols_t1 = st.columns(3)
-                    for idx, judge in enumerate(judges_t1):
-                        with s_cols_t1[idx % 3]:
-                            st.info(f"Steward für: {judge}")
-                            stew_url_t1 = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=1"
-                            st.image(generate_qr_image(stew_url_t1), width=200)
-                            st.write("---")
-                else:
-                    st.write("Keine Richter für Tag 1 gefunden.")
-            else:
-                st.error("Spalte 'RICHTER TAG 1' fehlt in den Daten!")
+        st.markdown("### 📝 Steward-Links (gelten für alle Runden)")
+        st.write("Ein QR-Code pro Richter. Die aktuelle Runde des Richters steuert die Ausstellungsleitung im Rundenmanager.")
+        if judges_alle:
+            s_cols = st.columns(3)
+            for idx, judge in enumerate(judges_alle):
+                with s_cols[idx % 3]:
+                    st.info(f"Steward für: {judge}")
+                    stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}"
+                    st.image(generate_qr_image(stew_url), width=200)
+                    st.write("---")
+        else:
+            st.write("Keine Richter gefunden.")
                 
-            st.write("") 
-            st.divider()
-            st.write("") 
-            
-            # --- SEKTION: TAG 2 ---
-            st.markdown("### 📝 Steward-Links für TAG 2 (Sonntag)")
-            st.write("Diese QR-Codes filtern fest auf die Richter von Tag 2:")
-            
-            if 'RICHTER TAG 2' in df_full.columns:
-                judges_t2 = sorted(real_judges(df_full['RICHTER TAG 2']))
-                if judges_t2:
-                    s_cols_t2 = st.columns(3)
-                    for idx, judge in enumerate(judges_t2):
-                        with s_cols_t2[idx % 3]:
-                            st.info(f"Steward für: {judge}")
-                            stew_url_t2 = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=2"
-                            st.image(generate_qr_image(stew_url_t2), width=200)
-                            st.write("---")
-                else:
-                    st.write("Keine Richter für Tag 2 gefunden.")
-            else:
-                st.error("Spalte 'RICHTER TAG 2' fehlt in den Daten!")
-                
-    # ---------------- TAB 2: RICHTER TAG 1 ----------------
+    # ---------------- TAB 2: RICHTER ----------------
     with tab2:
-        st.subheader("Richter-Direkt-Links für TAG 1")
-        if df_full is not None:
-            if 'RICHTER TAG 1' in df_full.columns:
-                judges_t1 = sorted(real_judges(df_full['RICHTER TAG 1']))
-                if judges_t1:
-                    j_cols = st.columns(3)
-                    for idx, judge in enumerate(judges_t1):
-                        with j_cols[idx % 3]:
-                            st.success(f"Richter: {judge}")
-                            j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=1"
-                            st.image(generate_qr_image(j_url), width=200)
-                            st.write("---")
-                else:
-                    st.write("Keine Richter für Tag 1 gefunden.")
-            else:
-                st.error("Spalte 'RICHTER TAG 1' fehlt in den Daten!")
-
-    # ---------------- TAB 3: RICHTER TAG 2 ----------------
-    with tab3:
-        st.subheader("Richter-Direkt-Links für TAG 2")
-        if df_full is not None:
-            if 'RICHTER TAG 2' in df_full.columns:
-                judges_t2 = sorted(real_judges(df_full['RICHTER TAG 2']))
-                if judges_t2:
-                    j_cols = st.columns(3)
-                    for idx, judge in enumerate(judges_t2):
-                        with j_cols[idx % 3]:
-                            st.success(f"Richter: {judge}")
-                            j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=2"
-                            st.image(generate_qr_image(j_url), width=200)
-                            st.write("---")
-                else:
-                    st.write("Keine Richter für Tag 2 gefunden.")
-            else:
-                st.error("Spalte 'RICHTER TAG 2' fehlt in den Daten!")
+        st.subheader("Richter-Direkt-Links (gelten für alle Runden)")
+        if judges_alle:
+            j_cols = st.columns(3)
+            for idx, judge in enumerate(judges_alle):
+                with j_cols[idx % 3]:
+                    st.success(f"Richter: {judge}")
+                    j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}"
+                    st.image(generate_qr_image(j_url), width=200)
+                    st.write("---")
+        else:
+            st.write("Keine Richter gefunden.")
                 
     # --- ZURÜCK NAVI ---
     if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_qrcode"):

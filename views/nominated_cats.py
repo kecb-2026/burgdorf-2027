@@ -17,10 +17,13 @@ import qrcode
 import streamlit as st
 from core.config import BASE_URL, LOGO_URL
 from core.data import load_labels, roman_to_numeric
+from core.rounds import round_label, usable_rounds
+from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
 
 def render():
+    store = get_store()
     display_header_with_logo("🏅 Nominierte Katzen (Admin-Zentrale)")
 
     def get_show_class(row):
@@ -35,8 +38,8 @@ def render():
     df_full = load_labels()
         
     if df_full is not None:
-        data_tag1 = []
-        data_tag2 = []
+        runden = usable_rounds(store, df_full)
+        data_runden = {n: [] for n in runden}
         
         for _, row in df_full.iterrows():
             kat_nr = row.get('KAT_STR', str(row.get('KATALOG-NR', ''))).replace('.0', '')
@@ -51,197 +54,112 @@ def render():
             if isinstance(geb_datum, pd.Timestamp): 
                 geb_datum = geb_datum.strftime('%d.%m.%Y')
 
-            # Echte Trennung nach SELECTION 1
-            if str(row.get('SELECTION 1', '')).strip().upper() == 'X':
-                richter_t1 = row.get('RICHTER TAG 1', row.get('RICHTER 1', ''))
-                data_tag1.append({
-                    "Katalog-Nr.": kat_nr,
-                    "Rasse": row.get('RASSE', '-'),
-                    "Farbcode": row.get('FARBE', '-'),
-                    "Farbgruppe": farbgruppe,
-                    "Geburtsdatum": geb_datum,
-                    "Geschlecht": row.get('GESCHLECHT', '-'),
-                    "Kategorie": row.get('KATEGORIE', '-'),
-                    "Klasse": klasse,
-                    "Show-Klasse": get_show_class(row),
-                    "Richter": richter_t1 if pd.notna(richter_t1) and str(richter_t1) != "nan" else "-",
-                    "Tag": "Tag 1 (Sa)"
-                })
-                
-            # Echte Trennung nach SELECTION 2
-            if str(row.get('SELECTION 2', '')).strip().upper() == 'X':
-                richter_t2 = row.get('RICHTER TAG 2', row.get('RICHTER 2', ''))
-                data_tag2.append({
-                    "Katalog-Nr.": kat_nr,
-                    "Rasse": row.get('RASSE', '-'),
-                    "Farbcode": row.get('FARBE', '-'),
-                    "Farbgruppe": farbgruppe,
-                    "Geburtsdatum": geb_datum,
-                    "Geschlecht": row.get('GESCHLECHT', '-'),
-                    "Kategorie": row.get('KATEGORIE', '-'),
-                    "Klasse": klasse,
-                    "Show-Klasse": get_show_class(row),
-                    "Richter": richter_t2 if pd.notna(richter_t2) and str(richter_t2) != "nan" else "-",
-                    "Tag": "Tag 2 (So)"
-                })
+            # Echte Trennung nach SELECTION 1 / 2 / 3 (eine Runde je Spalte)
+            for n in runden:
+                if str(row.get(f'SELECTION {n}', '')).strip().upper() == 'X':
+                    richter_n = row.get(f'RICHTER TAG {n}', row.get(f'RICHTER {n}', ''))
+                    data_runden[n].append({
+                        "Katalog-Nr.": kat_nr,
+                        "Rasse": row.get('RASSE', '-'),
+                        "Farbcode": row.get('FARBE', '-'),
+                        "Farbgruppe": farbgruppe,
+                        "Geburtsdatum": geb_datum,
+                        "Geschlecht": row.get('GESCHLECHT', '-'),
+                        "Kategorie": row.get('KATEGORIE', '-'),
+                        "Klasse": klasse,
+                        "Show-Klasse": get_show_class(row),
+                        "Richter": richter_n if pd.notna(richter_n) and str(richter_n) != "nan" else "-",
+                        "Runde": round_label(n, with_emoji=False)
+                    })
 
-        # Drei Reiter: Deine beiden Original-Tage + das neue Druckzentrum
-        tab_t1, tab_t2, tab_pdf_druck = st.tabs(["Tag 1 (Samstag)", "Tag 2 (Sonntag)", "🖨️ PDF Richter-Druckzentrum"])
+        # Ein Reiter pro Runde + das Druckzentrum
+        tab_namen = [round_label(n) for n in runden] + ["🖨️ PDF Richter-Druckzentrum"]
+        alle_tabs = st.tabs(tab_namen)
+        tab_pdf_druck = alle_tabs[-1]
 
-        # --- SEITE FÜR TAG 1 (DEIN ORIGINAL CODE) ---
-        with tab_t1:
-            if data_tag1:
-                df_nom_t1 = pd.DataFrame(data_tag1)
-                
-                # --- ADMIN-KONTROLLZENTRUM TAG 1 ---
-                st.markdown("### 🛡️ Admin-Kontrollzentrum (Samstag)")
-                df_valid_t1 = df_nom_t1[df_nom_t1['Richter'] != "-"].copy()
-                
-                dups_t1 = df_nom_t1[df_nom_t1.duplicated(subset=['Katalog-Nr.'], keep=False)]
-                if not dups_t1.empty:
-                    st.error(f"❌ {len(dups_t1['Katalog-Nr.'].unique())} Katze(n) sind mehrfach nominiert!")
-                    st.dataframe(dups_t1[['Katalog-Nr.', 'Richter']], hide_index=True)
-                else:
-                    st.success("✅ Katalog-Nummern für Samstag sind eindeutig.")
-                
-                if not df_valid_t1.empty:
-                    richter_load_t1 = df_valid_t1.groupby(['Richter', 'Kategorie']).size().reset_index(name='Anzahl')
-                    overloaded_t1 = richter_load_t1[richter_load_t1['Anzahl'] > 8]
-                    if not overloaded_t1.empty:
-                        st.warning(f"⚠️ {len(overloaded_t1)} Richter-Kategorie-Kombination(en) über Limit (8)!")
-                        st.dataframe(overloaded_t1, hide_index=True)
-                    else:
-                        st.success("✅ Richter-Kapazität für Samstag eingehalten.")
-                        
-                    violation_t1 = df_valid_t1.groupby(['Richter', 'Kategorie', 'Show-Klasse']).filter(lambda x: len(x) > 1)
-                    if not violation_t1.empty:
-                        st.error(f"❌ {len(violation_t1['Richter'].unique())} Richter hat Klassen-Verstöße!")
-                        st.dataframe(violation_t1[['Richter', 'Kategorie', 'Show-Klasse', 'Katalog-Nr.']], hide_index=True)
-                    else:
-                        st.success("✅ Klassen-Regel für Samstag eingehalten.")
-                
-                st.divider()
+        sort_options = {"Katalog-Nr.": "Katalog-Nr.", "Rasse": "Rasse", "Kategorie": "Kategorie", "Klasse": "Klasse", "Geschlecht": "Geschlecht", "Richter": "Richter"}
+        reihenfolge = ["Kitten 4-8 M", "Kitten 4-8 W", "Junior 8-12 M", "Junior 8-12 W", "Neuter M", "Neuter W", "Adult M", "Adult W"]
 
-                # --- FILTER & SORTIERUNG TAG 1 ---
-                st.markdown("### 🔍 Filter & Sortierung (Samstag)")
-                c_f1, c_f2 = st.columns(2)
-                with c_f1:
-                    r_opt_t1 = ["Alle Richter"] + sorted([r for r in df_nom_t1['Richter'].unique() if r != "-"])
-                    w_richter_t1 = st.selectbox("Nach Richter filtern:", r_opt_t1, key="r_t1")
-                with c_f2:
-                    k_opt_t1 = ["Alle Kategorien"] + sorted([str(k) for k in df_nom_t1['Kategorie'].unique() if k != "-"])
-                    w_kat_t1 = st.selectbox("Nach Kategorie filtern:", k_opt_t1, key="k_t1")
+        for tab_n, n in zip(alle_tabs[:-1], runden):
+            rname = round_label(n, with_emoji=False)
+            with tab_n:
+                if data_runden[n]:
+                    df_nom = pd.DataFrame(data_runden[n])
                     
-                c_f3, c_f4 = st.columns(2)
-                with c_f3:
-                    reihenfolge = ["Kitten 4-8 M", "Kitten 4-8 W", "Junior 8-12 M", "Junior 8-12 W", "Neuter M", "Neuter W", "Adult M", "Adult W"]
-                    vorhandene_sk_t1 = [sk for sk in reihenfolge if sk in df_nom_t1['Show-Klasse'].unique()]
-                    w_sk_t1 = st.selectbox("Nach Show-Klasse filtern:", ["Alle Show-Klassen"] + vorhandene_sk_t1, key="sk_t1")
-                with c_f4:
-                    g_opt_t1 = ["Alle Geschlechter"] + sorted([str(g) for g in df_nom_t1['Geschlecht'].unique() if g != "-"])
-                    w_geschlecht_t1 = st.selectbox("Nach Geschlecht filtern:", g_opt_t1, key="g_t1")
-
-                sort_options = {"Katalog-Nr.": "Katalog-Nr.", "Rasse": "Rasse", "Kategorie": "Kategorie", "Klasse": "Klasse", "Geschlecht": "Geschlecht", "Richter": "Richter"}
-                w_sort_t1 = st.selectbox("Primär sortieren nach:", list(sort_options.keys()), key="s_t1")
-
-                if w_richter_t1 != "Alle Richter": df_nom_t1 = df_nom_t1[df_nom_t1['Richter'] == w_richter_t1]
-                if w_kat_t1 != "Alle Kategorien": df_nom_t1 = df_nom_t1[df_nom_t1['Kategorie'].astype(str) == w_kat_t1]
-                if w_sk_t1 != "Alle Show-Klassen": df_nom_t1 = df_nom_t1[df_nom_t1['Show-Klasse'].astype(str) == w_sk_t1]
-                if w_geschlecht_t1 != "Alle Geschlechter": df_nom_t1 = df_nom_t1[df_nom_t1['Geschlecht'] == w_geschlecht_t1]
-
-                if w_sort_t1 == "Katalog-Nr.":
-                    df_nom_t1 = df_nom_t1.sort_values(by="Katalog-Nr.", key=lambda x: pd.to_numeric(x, errors='coerce'))
-                else:
-                    df_nom_t1 = df_nom_t1.sort_values(by=sort_options[w_sort_t1])
-
-                st.success(f"Gefunden: {len(df_nom_t1)} nominierte Katze(n) für Samstag.")
-                st.dataframe(df_nom_t1, use_container_width=True, hide_index=True)
-                
-                csv_t1 = df_nom_t1.to_csv(index=False).encode('utf-8-sig')
-                st.download_button("📥 Liste Tag 1 als CSV herunterladen", data=csv_t1, file_name="nominated_samstag.csv", mime="text/csv", key="dl_t1")
-            else:
-                st.info("Keine Nominationen für Tag 1 (Spalte 'SELECTION 1') vorhanden.")
-
-        # --- SEITE FÜR TAG 2 (DEIN ORIGINAL CODE) ---
-        with tab_t2:
-            if data_tag2:
-                df_nom_t2 = pd.DataFrame(data_tag2)
-                
-                # --- ADMIN-KONTROLLZENTRUM TAG 2 ---
-                st.markdown("### 🛡️ Admin-Kontrollzentrum (Sonntag)")
-                df_valid_t2 = df_nom_t2[df_nom_t2['Richter'] != "-"].copy()
-                
-                dups_t2 = df_nom_t2[df_nom_t2.duplicated(subset=['Katalog-Nr.'], keep=False)]
-                if not dups_t2.empty:
-                    st.error(f"❌ {len(dups_t2['Katalog-Nr.'].unique())} Katze(n) sind mehrfach nominiert!")
-                    st.dataframe(dups_t2[['Katalog-Nr.', 'Richter']], hide_index=True)
-                else:
-                    st.success("✅ Katalog-Nummern für Sonntag sind eindeutig.")
-                
-                if not df_valid_t2.empty:
-                    richter_load_t2 = df_valid_t2.groupby(['Richter', 'Kategorie']).size().reset_index(name='Anzahl')
-                    overloaded_t2 = richter_load_t2[richter_load_t2['Anzahl'] > 8]
-                    if not overloaded_t2.empty:
-                        st.warning(f"⚠️ {len(overloaded_t2)} Richter-Kategorie-Kombination(en) über Limit (8)!")
-                        st.dataframe(overloaded_t2, hide_index=True)
-                    else:
-                        st.success("✅ Richter-Kapazität für Sonntag eingehalten.")
-                        
-                    violation_t2 = df_valid_t2.groupby(['Richter', 'Kategorie', 'Show-Klasse']).filter(lambda x: len(x) > 1)
-                    if not violation_t2.empty:
-                        st.error(f"❌ {len(violation_t2['Richter'].unique())} Richter hat Klassen-Verstöße!")
-                        st.dataframe(violation_t2[['Richter', 'Kategorie', 'Show-Klasse', 'Katalog-Nr.']], hide_index=True)
-                    else:
-                        st.success("✅ Klassen-Regel für Sonntag eingehalten.")
-                
-                st.divider()
-
-                # --- FILTER & SORTIERUNG TAG 2 ---
-                st.markdown("### 🔍 Filter & Sortierung (Sonntag)")
-                c_f1, c_f2 = st.columns(2)
-                with c_f1:
-                    r_opt_t2 = ["Alle Richter"] + sorted([r for r in df_nom_t2['Richter'].unique() if r != "-"])
-                    w_richter_t2 = st.selectbox("Nach Richter filtern:", r_opt_t2, key="r_t2")
-                with c_f2:
-                    k_opt_t2 = ["Alle Kategorien"] + sorted([str(k) for k in df_nom_t2['Kategorie'].unique() if k != "-"])
-                    w_kat_t2 = st.selectbox("Nach Kategorie filtern:", k_opt_t2, key="k_t2")
+                    # --- ADMIN-KONTROLLZENTRUM ---
+                    st.markdown(f"### 🛡️ Admin-Kontrollzentrum ({rname})")
+                    df_valid = df_nom[df_nom['Richter'] != "-"].copy()
                     
-                c_f3, c_f4 = st.columns(2)
-                with c_f3:
-                    reihenfolge = ["Kitten 4-8 M", "Kitten 4-8 W", "Junior 8-12 M", "Junior 8-12 W", "Neuter M", "Neuter W", "Adult M", "Adult W"]
-                    vorhandene_sk_t2 = [sk for sk in reihenfolge if sk in df_nom_t2['Show-Klasse'].unique()]
-                    w_sk_t2 = st.selectbox("Nach Show-Klasse filtern:", ["Alle Show-Klassen"] + vorhandene_sk_t2, key="sk_t2")
-                with c_f4:
-                    g_opt_t2 = ["Alle Geschlechter"] + sorted([str(g) for g in df_nom_t2['Geschlecht'].unique() if g != "-"])
-                    w_geschlecht_t2 = st.selectbox("Nach Geschlecht filtern:", g_opt_t2, key="g_t2")
+                    dups = df_nom[df_nom.duplicated(subset=['Katalog-Nr.'], keep=False)]
+                    if not dups.empty:
+                        st.error(f"❌ {len(dups['Katalog-Nr.'].unique())} Katze(n) sind mehrfach nominiert!")
+                        st.dataframe(dups[['Katalog-Nr.', 'Richter']], hide_index=True)
+                    else:
+                        st.success(f"✅ Katalog-Nummern für {rname} sind eindeutig.")
+                    
+                    if not df_valid.empty:
+                        richter_load = df_valid.groupby(['Richter', 'Kategorie']).size().reset_index(name='Anzahl')
+                        overloaded = richter_load[richter_load['Anzahl'] > 8]
+                        if not overloaded.empty:
+                            st.warning(f"⚠️ {len(overloaded)} Richter-Kategorie-Kombination(en) über Limit (8)!")
+                            st.dataframe(overloaded, hide_index=True)
+                        else:
+                            st.success(f"✅ Richter-Kapazität für {rname} eingehalten.")
+                            
+                        violation = df_valid.groupby(['Richter', 'Kategorie', 'Show-Klasse']).filter(lambda x: len(x) > 1)
+                        if not violation.empty:
+                            st.error(f"❌ {len(violation['Richter'].unique())} Richter hat Klassen-Verstöße!")
+                            st.dataframe(violation[['Richter', 'Kategorie', 'Show-Klasse', 'Katalog-Nr.']], hide_index=True)
+                        else:
+                            st.success(f"✅ Klassen-Regel für {rname} eingehalten.")
+                    
+                    st.divider()
 
-                w_sort_t2 = st.selectbox("Primär sortieren nach:", list(sort_options.keys()), key="s_t2")
+                    # --- FILTER & SORTIERUNG ---
+                    st.markdown(f"### 🔍 Filter & Sortierung ({rname})")
+                    c_f1, c_f2 = st.columns(2)
+                    with c_f1:
+                        r_opt = ["Alle Richter"] + sorted([r for r in df_nom['Richter'].unique() if r != "-"])
+                        w_richter = st.selectbox("Nach Richter filtern:", r_opt, key=f"r_t{n}")
+                    with c_f2:
+                        k_opt = ["Alle Kategorien"] + sorted([str(k) for k in df_nom['Kategorie'].unique() if k != "-"])
+                        w_kat = st.selectbox("Nach Kategorie filtern:", k_opt, key=f"k_t{n}")
+                        
+                    c_f3, c_f4 = st.columns(2)
+                    with c_f3:
+                        vorhandene_sk = [sk for sk in reihenfolge if sk in df_nom['Show-Klasse'].unique()]
+                        w_sk = st.selectbox("Nach Show-Klasse filtern:", ["Alle Show-Klassen"] + vorhandene_sk, key=f"sk_t{n}")
+                    with c_f4:
+                        g_opt = ["Alle Geschlechter"] + sorted([str(g) for g in df_nom['Geschlecht'].unique() if g != "-"])
+                        w_geschlecht = st.selectbox("Nach Geschlecht filtern:", g_opt, key=f"g_t{n}")
 
-                if w_richter_t2 != "Alle Richter": df_nom_t2 = df_nom_t2[df_nom_t2['Richter'] == w_richter_t2]
-                if w_kat_t2 != "Alle Kategorien": df_nom_t2 = df_nom_t2[df_nom_t2['Kategorie'].astype(str) == w_kat_t2]
-                if w_sk_t2 != "Alle Show-Klassen": df_nom_t2 = df_nom_t2[df_nom_t2['Show-Klasse'].astype(str) == w_sk_t2]
-                if w_geschlecht_t2 != "Alle Geschlechter": df_nom_t2 = df_nom_t2[df_nom_t2['Geschlecht'] == w_geschlecht_t2]
+                    w_sort = st.selectbox("Primär sortieren nach:", list(sort_options.keys()), key=f"s_t{n}")
 
-                if w_sort_t2 == "Katalog-Nr.":
-                    df_nom_t2 = df_nom_t2.sort_values(by="Katalog-Nr.", key=lambda x: pd.to_numeric(x, errors='coerce'))
+                    if w_richter != "Alle Richter": df_nom = df_nom[df_nom['Richter'] == w_richter]
+                    if w_kat != "Alle Kategorien": df_nom = df_nom[df_nom['Kategorie'].astype(str) == w_kat]
+                    if w_sk != "Alle Show-Klassen": df_nom = df_nom[df_nom['Show-Klasse'].astype(str) == w_sk]
+                    if w_geschlecht != "Alle Geschlechter": df_nom = df_nom[df_nom['Geschlecht'] == w_geschlecht]
+
+                    if w_sort == "Katalog-Nr.":
+                        df_nom = df_nom.sort_values(by="Katalog-Nr.", key=lambda x: pd.to_numeric(x, errors='coerce'))
+                    else:
+                        df_nom = df_nom.sort_values(by=sort_options[w_sort])
+
+                    st.success(f"Gefunden: {len(df_nom)} nominierte Katze(n) für {rname}.")
+                    st.dataframe(df_nom, use_container_width=True, hide_index=True)
+                    
+                    csv_n = df_nom.to_csv(index=False).encode('utf-8-sig')
+                    st.download_button(f"📥 Liste {rname} als CSV herunterladen", data=csv_n, file_name=f"nominated_runde{n}.csv", mime="text/csv", key=f"dl_t{n}")
                 else:
-                    df_nom_t2 = df_nom_t2.sort_values(by=sort_options[w_sort_t2])
-
-                st.success(f"Gefunden: {len(df_nom_t2)} nominierte Katze(n) für Sonntag.")
-                st.dataframe(df_nom_t2, use_container_width=True, hide_index=True)
-                
-                csv_t2 = df_nom_t2.to_csv(index=False).encode('utf-8-sig')
-                st.download_button("📥 Liste Tag 2 als CSV herunterladen", data=csv_t2, file_name="nominated_sonntag.csv", mime="text/csv", key="dl_t2")
-            else:
-                st.info("Keine Nominationen für Tag 2 (Spalte 'SELECTION 2') vorhanden.")
+                    st.info(f"Keine Nominationen für {rname} (Spalte 'SELECTION {n}') vorhanden.")
 
         # --- REITER 3: DER NEUE DRUCK-BEREICH FÜR DAS REVOLUTIONÄRE RICHTER-PDF ---
         with tab_pdf_druck:
             st.markdown("### 🖨️ Offizielle Richter-Nominationsliste (PDF)")
             st.write("Wähle den Ausstellungstag und den Richter aus, um das personalisierte Deckblatt mit der Gesamtliste aller Nominationen inklusive Nominierungs-Richter zu drucken.")
             
-            selected_day_label = st.selectbox("📅 Ausstellungstag für PDF wählen:", ["Tag 1 (Samstag)", "Tag 2 (Sonntag)"], key="pdf_day_sel")
-            day_num = 1 if "Tag 1" in selected_day_label else 2
+            day_num = st.selectbox("📅 Runde für PDF wählen:", runden, format_func=round_label, key="pdf_round_sel")
+            selected_day_label = round_label(day_num, with_emoji=False)
             tag_key = f"TAG {day_num}"
             selection_col = f"SELECTION {day_num}"
             judge_col = f"RICHTER TAG {day_num}"
