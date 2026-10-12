@@ -6,7 +6,7 @@ import streamlit as st
 import time
 from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
-from core.ui import display_header_with_logo, render_overlay_html
+from core.ui import display_header_with_logo, render_overlay_html, judge_header_html
 
 
 def render():
@@ -130,7 +130,7 @@ def render():
         cols[0].empty()
         for i, j in enumerate(judges):
             clean_id = str(j).replace(" ", "_")
-            cols[i+1].markdown(f"<div class='judge-header-box judge-{clean_id}'>{j}</div>", unsafe_allow_html=True)
+            cols[i+1].markdown(judge_header_html(j, judges, extra_class=f"judge-{clean_id}"), unsafe_allow_html=True)
 
         # --- KATZEN-ZEILEN (OHNE BIS-SPALTE) ---
         for label, klassen, geschl in bis_defs:

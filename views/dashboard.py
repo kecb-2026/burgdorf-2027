@@ -5,7 +5,7 @@ import streamlit as st
 from core.data import get_full_label, load_labels
 from core.rounds import all_judges, default_round, judge_cats, judge_round, round_color, round_label, round_on_color, round_tint, tag_of
 from core.store import get_store
-from core.ui import display_header_with_logo
+from core.ui import display_header_with_logo, judge_header_html
 
 
 def render():
@@ -28,11 +28,7 @@ def render():
                 df_tag = judge_cats(df_full, j, rn)
                 r_color, r_tint, r_on, r_text = round_color(rn), round_tint(rn), round_on_color(rn), round_label(rn, with_emoji=False)
                 with cols[i]:
-                    st.markdown(
-                        f"<div class='judge-header-box' style='background-color:{r_color}; color:{r_on}; border-color:{r_color};'>"
-                        f"<div>{j}<div style='font-size:0.45em; font-weight:600; text-transform:none;'>{r_text}</div></div></div>",
-                        unsafe_allow_html=True,
-                    )
+                    st.markdown(judge_header_html(j, judges, bg=r_color, fg=r_on, border=r_color, sub=r_text), unsafe_allow_html=True)
                     
                     judge_entries = []
                     for k, v in store.data.items():
