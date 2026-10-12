@@ -153,12 +153,11 @@ def render():
 
     # --- Ergebnis + ein Knopf ---
     st.markdown("""<style>
-    div[data-testid="stButton"] > button, div.stButton > button { width: 100% !important; min-height: 170px !important; height: 170px !important;
+    .st-key-mod_show_winner button, .st-key-mod_show_winner_early button { width: 100% !important; min-height: 170px !important; height: 170px !important;
         border-radius: 18px !important; padding: 10px 14px !important; }
-    div[data-testid="stButton"] > button p, div[data-testid="stButton"] > button div, div[data-testid="stButton"] > button span,
-    div.stButton > button p { font-size: 44px !important; font-weight: 900 !important; line-height: 1.1 !important; white-space: normal !important; }
-    div[data-testid="stButton"] > button:not(:disabled) { background:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; }
-    div[data-testid="stButton"] > button:disabled { opacity:.45 !important; }
+    .st-key-mod_show_winner button p, .st-key-mod_show_winner_early button p { font-size: 44px !important; font-weight: 900 !important; line-height: 1.1 !important; white-space: normal !important; }
+    .st-key-mod_show_winner button:not(:disabled), .st-key-mod_show_winner_early button:not(:disabled) { background:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; }
+    .st-key-mod_show_winner button:disabled, .st-key-mod_show_winner_early button:disabled { opacity:.45 !important; }
     </style>""", unsafe_allow_html=True)
     c_res, c_btn = st.columns([1.3, 1])
     with c_res:
@@ -205,18 +204,22 @@ def render():
 
         # --- Zweiter Knopf: vorzeitig zeigen, wenn noch nicht alle bestätigt haben ---
         _early = None
-        if winner is None and not winner_revealed and counts and n_conf < len(judges):
+        _show_early = winner is None and not winner_revealed and n_conf < len(judges)
+        if _show_early and counts:
             _top = max(counts.values())
             _lead = [k for k, c in counts.items() if c == _top]
             if len(_lead) == 1:
                 _early = _lead[0]
-        if _early is not None:
-            st.markdown(f"<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorläufig führt <b>#{_e(_early)}</b> mit {counts[_early]} von {n_conf} bestätigten Stimmen ({len(judges) - n_conf} Richter fehlen noch).</div>", unsafe_allow_html=True)
+        if _show_early:
+            if _early is not None:
+                st.markdown(f"<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorläufig führt <b>#{_e(_early)}</b> mit {counts[_early]} von {n_conf} bestätigten Stimmen ({len(judges) - n_conf} Richter fehlen noch).</div>", unsafe_allow_html=True)
+            else:
+                st.markdown("<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorzeitiges Zeigen ist möglich, sobald es eine eindeutig führende Katze gibt.</div>", unsafe_allow_html=True)
             _ok = st.checkbox("Ich weiss: Es haben noch nicht alle bestätigt. Gewinner trotzdem zeigen.", key="mod_early_ok")
             st.button(
                 "⚡ GEWINNER JETZT ZEIGEN",
                 key="mod_show_winner_early",
-                disabled=not _ok,
+                disabled=(not _ok) or (_early is None),
                 on_click=_mod_show_early,
                 args=(tag, cat, label, _early),
                 use_container_width=True,
