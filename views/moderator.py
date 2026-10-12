@@ -2,11 +2,13 @@
 """Ansicht: Moderator"""
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
+import re
 import streamlit as st
 import time
 from core.data import get_full_label, load_labels, with_selection
+from core.bis import cat_status
 from core.store import get_store
-from core.ui import display_header_with_logo
+from core.ui import display_header_with_logo, round_banner
 
 
 def render():
@@ -68,6 +70,11 @@ def render():
                 store.overlay_start_time = time.time()
         store.save_backup()
 
+    def _mod_show_early(tag, cat, label, nr):
+        # Gewinner festlegen (damit spaetere Stimmen ihn nicht mehr aendern) und zeigen
+        store.data[f"override_{tag}_{cat}_{label}"] = str(nr)
+        _mod_show_winner(tag, cat, label, nr)
+
     def _e(x):
         return _html.escape(str(x))
 
@@ -79,6 +86,7 @@ def render():
 
     tag = str(store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")).upper()
     df_full = with_selection(df_full, tag)
+    round_banner(tag)
     st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
 
     cat = store.data.get("test_live_cat")
@@ -97,6 +105,11 @@ def render():
         st.error(f"Unbekannte Klasse: {label}")
         st.stop()
     klassen, geschl = _defs[label]
+    _bs = cat_status(store, df_full, int(re.search(r"\d+", tag).group()), cat)
+    if _bs["ready"]:
+        st.success("✅ BIS bereit: alle Katzen dieser Kategorie in dieser Runde sind gerichtet.")
+    else:
+        st.warning(f"⏳ BIS noch nicht bereit: {len(_bs['open'])} von {_bs['total']} Katzen offen.")
 
     r_col = f"RICHTER {tag}"
     if r_col not in df_full.columns:
@@ -138,8 +151,8 @@ def render():
     )
 
     # --- Ergebnis + ein Knopf ---
-    st.markdown("<style>div.stButton > button { height: 70px; font-size: 22px; }</style>", unsafe_allow_html=True)
-    c_res, c_btn = st.columns([2, 1])
+    st.markdown("<style>div.stButton > button { height: 140px; font-size: 34px; font-weight: 900; line-height: 1.15; white-space: normal; }</style>", unsafe_allow_html=True)
+    c_res, c_btn = st.columns([1.3, 1])
     with c_res:
         if winner:
             _w = df_full[df_full['KAT_STR'] == str(winner)]
@@ -180,6 +193,24 @@ def render():
         )
         if winner_revealed:
             st.caption("✅ Gewinner ist für Richter und BIS-Screen freigegeben.")
+
+        # --- Zweiter Knopf: vorzeitig zeigen, wenn noch nicht alle bestätigt haben ---
+        _early = None
+        if winner is None and not winner_revealed and counts and n_conf < len(judges):
+            _top = max(counts.values())
+            _lead = [k for k, c in counts.items() if c == _top]
+            if len(_lead) == 1:
+                _early = _lead[0]
+        if _early is not None:
+            st.markdown(f"<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorläufig führt <b>#{_e(_early)}</b> mit {counts[_early]} von {n_conf} bestätigten Stimmen ({len(judges) - n_conf} Richter fehlen noch).</div>", unsafe_allow_html=True)
+            _ok = st.checkbox("Ich weiss: Es haben noch nicht alle bestätigt. Gewinner trotzdem zeigen.", key="mod_early_ok")
+            st.button(
+                "⚡ GEWINNER JETZT ZEIGEN",
+                key="mod_show_winner_early",
+                disabled=not _ok,
+                on_click=_mod_show_early,
+                args=(tag, cat, label, _early),
+            )
 
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 

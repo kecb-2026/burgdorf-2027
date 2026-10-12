@@ -26,6 +26,7 @@ VIEWS = {
     "Home": "views.home",
     "BIS_Public": "views.bis_public",
     "Dashboard": "views.dashboard",
+    "Live_Handy": "views.live_handy",
     "Steward_Panel": "views.steward_panel",
     "QR_Codes_Gen": "views.qr_codes_gen",
     "Nominated_Cats": "views.nominated_cats",
@@ -40,6 +41,7 @@ VIEWS = {
     "Moderator": "views.moderator",
     "Excel_Upload": "views.excel_upload",
     "Excel_Edit": "views.excel_edit",
+    "Import_PDF": "views.import_pdf",
 }
 
 # --- SESSION STATE & URL PARAMETER ---
@@ -59,6 +61,7 @@ if "auth" in q_params and q_params["auth"] == "true":
         elif v_param == "rundenmanager": st.session_state.view = "Rundenmanager"
         elif v_param == "excel-upload": st.session_state.view = "Excel_Upload"
         elif v_param == "excel-edit": st.session_state.view = "Excel_Edit"
+        elif v_param == "import-pdf": st.session_state.view = "Import_PDF"
 
        # elif v_param == "bis-admin": st.session_state.view = "BIS_Admin_Control"
        # elif v_param == "qr": st.session_state.view = "QR_Codes"
@@ -84,6 +87,7 @@ if "view" not in st.session_state:
 if "view" in q_params and not st.session_state.authenticated:
     v_param = q_params["view"].lower()
     if v_param == "katzenaufruf": st.session_state.view = "Dashboard"
+    elif v_param == "live": st.session_state.view = "Live_Handy"
     elif v_param == "bis": st.session_state.view = "BIS_Public"
     elif v_param in ["admin", "steward", "richter", "bis-admin"]:
         st.session_state.view = "Login"

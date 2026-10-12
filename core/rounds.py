@@ -92,12 +92,20 @@ def all_judges(df):
     return sorted(names)
 
 
-def judge_cats(df, judge, n):
-    """Zeilen des Excels, die der Richter in Runde n richtet."""
+def judge_cats(df, judge, n, gated=False):
+    """Zeilen des Excels, die der Richter in Runde n richtet.
+    gated=True: Kategorien, die im Rundenmanager fuer diese Runde gesperrt sind, werden weggelassen."""
     tag, rc = tag_of(n), f"RICHTER TAG {n}"
     if tag not in df.columns or rc not in df.columns:
         return df.iloc[0:0]
-    return df[(df[tag].astype(str).str.strip().str.upper() == "X") & (df[rc].astype(str).str.strip() == judge)]
+    out = df[(df[tag].astype(str).str.strip().str.upper() == "X") & (df[rc].astype(str).str.strip() == judge)]
+    if gated and not out.empty:
+        from core.gate import blocked_cats, cat_key
+        from core.store import get_store
+        bl = blocked_cats(get_store(), n)
+        if bl:
+            out = out[~out["KATEGORIE"].apply(cat_key).isin(bl)]
+    return out
 
 
 def busy_elsewhere(store, nr, judge):

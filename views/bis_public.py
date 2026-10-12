@@ -6,7 +6,7 @@ import streamlit as st
 import time
 from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
-from core.ui import display_header_with_logo, render_overlay_html, judge_header_html
+from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
 
 
 def render():
@@ -59,6 +59,7 @@ def render():
 
         st.sidebar.info(f"📅 Aktiver Ausstellungstag: {current_tag}")
         tag = current_tag
+        round_banner(tag, big=True)
 
         sel_cat = st.selectbox("Kategorie:", available_cats, index=cat_index)
         

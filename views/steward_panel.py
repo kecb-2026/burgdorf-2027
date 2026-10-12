@@ -6,6 +6,8 @@ import time
 from core.config import FIFe_KLASSEN_NAMEN
 from core.data import get_full_label, load_labels
 from core.rounds import all_judges, busy_elsewhere, judge_cats, judge_round, round_color, round_label, round_tint, tag_of
+from core.gate import get_show_day, is_open as is_cat_open
+from core.imports import is_absent
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -51,9 +53,13 @@ def render():
             )
             df_richter_alle = judge_cats(df_full, mein_richter, runde)
             verfuegbare_kategorien = sorted(list(set([str(cat).replace('.0', '') for cat in df_richter_alle['KATEGORIE'].unique() if pd.notna(cat)])))
-            meine_kategorie = st.selectbox("Kategorie wählen:", verfuegbare_kategorien)
+            meine_kategorie = st.selectbox("Kategorie wählen:", verfuegbare_kategorien,
+                                           format_func=lambda c: c if is_cat_open(store, runde, c) else f"🔒 {c} (nicht freigegeben)")
             
             df_j = df_richter_alle[df_richter_alle['KATEGORIE'].astype(str).str.replace('.0', '') == meine_kategorie].sort_values('KATALOG-NR')
+            if not is_cat_open(store, runde, meine_kategorie):
+                st.error(f"🔒 Kategorie {meine_kategorie} ist in dieser Runde ({r_text}, {get_show_day(store)}) nicht freigegeben.")
+                df_j = df_j.iloc[0:0]
             st.divider()
             
             for _, row in df_j.iterrows():
@@ -134,7 +140,10 @@ def render():
                 # --- Sperre: Katze ist bei einem anderen Richter belegt ---
                 belegt = busy_elsewhere(store, nr, mein_richter)
                 ist_admin = st.session_state.get("user_role") == "Admin"
-                gesperrt = bool(belegt) and not ist_admin
+                abwesend = is_absent(store, nr)
+                gesperrt = (bool(belegt) and not ist_admin) or abwesend
+                if abwesend:
+                    st.error(f"🚫 Katze {nr} ist ABWESEND (PDF-Liste). Freigabe nur durch die Ausstellungsleitung im PDF-Import.")
                 if belegt:
                     wo = ", ".join(f"{o} ({t})" for o, t in belegt)
                     if ist_admin:
@@ -203,7 +212,7 @@ def render():
                 # BUTTON 5: GERICHTET (Grau)
                 is_done = flags.get("Gerichtet")
                 with c5:
-                    if st.button("[ ERLEDIGT ] GERICHTET" if is_done else "GERICHTET", key=f"btn_done_{k}"):
+                    if st.button("[ ERLEDIGT ] GERICHTET" if is_done else "GERICHTET", key=f"btn_done_{k}", disabled=abwesend):
                         if not is_done:
                             store.data[k]["flags"]["Zum Richten"] = False
                             store.data[k]["flags"]["Wird gerichtet"] = False

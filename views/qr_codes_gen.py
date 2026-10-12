@@ -156,7 +156,7 @@ def render():
     st.divider()
 
     # Registerkarten für die Übersichtlichkeit (Web-Ansicht)
-    tab1, tab2 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter"])
+    tab1, tab2, tab3 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter", "📱 Aussteller (Handy)"])
     judges_alle = all_judges(df_full) if df_full is not None else []
     
     # ---------------- TAB 1: STEWARDS & ADMINS ----------------
@@ -198,6 +198,24 @@ def render():
         else:
             st.write("Keine Richter gefunden.")
                 
+    # ---------------- TAB 3: AUSSTELLER ----------------
+    with tab3:
+        st.subheader("Aussteller-Ansicht (ohne Login)")
+        st.write("Ein allgemeiner QR-Code mit Richter-Auswahl und je ein QR-Code pro Richter (z. B. am Richtertisch aufhängen).")
+        g_url = f"{base_url}?view=live"
+        st.info("Allgemein (Richter selbst wählen)")
+        st.image(generate_qr_image(g_url), width=230)
+        st.caption(f"[Link kopieren]({g_url})")
+        st.divider()
+        if judges_alle:
+            a_cols = st.columns(3)
+            for idx, judge in enumerate(judges_alle):
+                with a_cols[idx % 3]:
+                    st.info(f"Aussteller: {judge}")
+                    a_url = f"{base_url}?view=live&judge={judge.replace(' ', '+')}"
+                    st.image(generate_qr_image(a_url), width=200)
+                    st.write("---")
+
     # --- ZURÜCK NAVI ---
     if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_qrcode"):
         set_view("Home")

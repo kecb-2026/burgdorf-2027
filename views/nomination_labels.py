@@ -7,7 +7,7 @@ from reportlab.pdfgen import canvas
 import pandas as pd
 import streamlit as st
 from core.data import get_full_label, load_labels
-from core.rounds import round_label, usable_rounds
+from core.rounds import round_color, round_label, round_on_color, usable_rounds
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -55,7 +55,7 @@ def render():
     
 
         # DEINE PDF-FUNKTION (KOMPLETT UNBERÜHRT UND UNVERÄNDERT)
-        def generate_avery_labels(df):
+        def generate_avery_labels(df, runde=None):
             buffer = BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             
@@ -175,9 +175,23 @@ def render():
                         c.setLineWidth(0.2)
                         c.rect(x, y, label_width, label_height)
                         
+                        # Rundenmarkierung (Variante C): farbiger Streifen am linken Rand + Rundenname (auch s/w lesbar)
+                        if runde is not None:
+                            stripe_w = 6 * mm
+                            c.setFillColor(colors.HexColor(round_color(runde)))
+                            c.rect(x, y, stripe_w, label_height, fill=1, stroke=0)
+                            c.setFillColor(colors.HexColor(round_on_color(runde)))
+                            c.setFont("Helvetica-Bold", 12)
+                            c.saveState()
+                            c.translate(x + stripe_w / 2 + 1.6*mm, y + label_height / 2)
+                            c.rotate(90)
+                            c.drawCentredString(0, 0, round_label(runde, with_emoji=False).replace("Runde ", "").upper())
+                            c.restoreState()
+                            c.setFillColor(colors.black)
+
                         c.setFont("Helvetica", 14)
                         c.setFillColor(colors.black)
-                        c.drawString(x + 6*mm, y + label_height - 10*mm, kategorie)
+                        c.drawString(x + 9*mm, y + label_height - 10*mm, kategorie)
                         
                         badge_w = 22 * mm
                         badge_h = 6 * mm
@@ -195,7 +209,7 @@ def render():
                         c.drawCentredString(x + (label_width / 2), y + (label_height / 2) - 4*mm, kat_nr)
                         
                         c.setFont("Helvetica", 12)
-                        c.drawString(x + 6*mm, y + 10*mm, ems_code)
+                        c.drawString(x + 9*mm, y + 10*mm, ems_code)
                         
                         c.setFont("Helvetica", 12)
                         c.drawRightString(x + label_width - 6*mm, y + 10*mm, str(geb_datum))
@@ -215,7 +229,7 @@ def render():
                     st.info(f"Aktuell sind **{len(df_n)}** Katzen für den Labeldruck in {round_label(n)} bereit.")
                     st.download_button(
                         label=f"📥 Avery Zweckform (4782) PDF generieren & herunterladen ({round_label(n, with_emoji=False)})",
-                        data=generate_avery_labels(df_n.copy()),
+                        data=generate_avery_labels(df_n.copy(), n),
                         file_name=f"KECB_Nomination_Labels_Sorted_Tag{n}.pdf",
                         mime="application/pdf",
                         key=f"dl_btn_t{n}"

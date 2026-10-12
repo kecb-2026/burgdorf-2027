@@ -52,6 +52,10 @@ def render():
             st.query_params.update({"view": "excel-upload", "auth": "true", "role": "Admin"})
             set_view("Excel_Upload")
             st.rerun()
+        if st.button("📥 PDF-IMPORT (ABWESENDE / NOMINIERTE)"):
+            st.query_params.update({"view": "import-pdf", "auth": "true", "role": "Admin"})
+            set_view("Import_PDF")
+            st.rerun()
         if st.button("📝 EXCEL LIVE-EDITOR"):
             st.query_params.update({"view": "excel-edit", "auth": "true", "role": "Admin"})
             set_view("Excel_Edit")

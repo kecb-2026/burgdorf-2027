@@ -6,6 +6,8 @@ import streamlit as st
 import time
 from core.data import load_labels
 from core.rounds import active_rounds, default_round, round_label, tag_of
+from core.bis import cat_status, set_manual_ready
+from core.gate import get_show_day, is_open as is_cat_open
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -59,6 +61,20 @@ def render():
     if df_full is not None:
         # Auch die Kategorie-Auswahl braucht einen tagesabhängigen Key
         sel_cat = st.selectbox("Kategorie verwalten:", sorted(df_full['KATEGORIE'].unique()), key=f"admin_sel_cat_{admin_tag}")
+        if not is_cat_open(store, admin_round, sel_cat):
+            st.error(f"🔒 Kategorie {sel_cat} ist in {round_label(admin_round)} ({get_show_day(store)}) nicht freigegeben. Freigabe im Rundenmanager (Kategorien-Freigabe).")
+            st.stop()
+        _st = cat_status(store, df_full, admin_round, sel_cat)
+        _mk = f"bis_manual_{admin_tag}_{sel_cat}"
+        def _cb_manual(_n=admin_round, _c=sel_cat, _k=_mk):
+            set_manual_ready(store, _n, _c, st.session_state[_k])
+        if _st["ready"]:
+            st.success(f"✅ BIS bereit: Kategorie {sel_cat} in {round_label(admin_round)}" + (" (von Hand gesetzt)" if _st["manual"] else f" – alle {_st['total']} Katzen gerichtet"))
+        else:
+            _o = ", ".join(_st["open"][:12]) + (" …" if len(_st["open"]) > 12 else "")
+            st.warning(f"⏳ Noch nicht bereit: {len(_st['open'])} von {_st['total']} Katzen offen ({_o})")
+        st.session_state[_mk] = _st["manual"] or bool(store.data.get(f"bis_ready_{admin_tag}_{sel_cat}", False))
+        st.checkbox("Von Hand als «BIS bereit» markieren", key=_mk, on_change=_cb_manual)
         bis_defs = [("Adult Male", [1,3,5,7,9], "M"), ("Adult Female", [1,3,5,7,9], "W"), ("Neuter Male", [2,4,6,8,10], "M"), ("Neuter Female", [2,4,6,8,10], "W"), ("Junior 8-12 Male", [11], "M"), ("Junior 8-12 Female", [11], "W"), ("Kitten 4-8 Male", [12], "M"), ("Kitten 4-8 Female", [12], "W")]
         
         for label, klassen, geschl in bis_defs:

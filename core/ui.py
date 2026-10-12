@@ -68,3 +68,18 @@ def judge_header_html(name, all_names, bg=None, fg=None, border=None, sub=None, 
     sub_html = f"<div class='jh-sub'>{_h.escape(sub)}</div>" if sub else ""
     return (f"<div class='jh-wrap'><div class='jh-box {extra_class}' style='{style}--jhfs:{fs:.2f}cqw;'>"
             f"<div class='jh-first'>{_h.escape(a)}</div><div class='jh-last'>{_h.escape(b)}</div>{sub_html}</div></div>")
+
+
+def round_banner(tag, big=False):
+    """Farbiger Balken mit der aktiven Runde (tag z. B. 'TAG 2')."""
+    import re as _re
+    from core.rounds import round_color, round_label, round_on_color
+    m = _re.search(r"(\d+)", str(tag))
+    n = int(m.group(1)) if m else 1
+    fs = "clamp(26px, 3vw, 46px)" if big else "clamp(20px, 2.2vw, 32px)"
+    st.markdown(
+        f"<div style='background:{round_color(n)}; color:{round_on_color(n)}; border-radius:12px; "
+        f"padding:{'12px' if big else '8px'} 16px; margin:4px 0 14px 0; text-align:center; "
+        f"font-weight:900; text-transform:uppercase; letter-spacing:.06em; font-size:{fs}; line-height:1.15;'>"
+        f"{round_label(n)}</div>",
+        unsafe_allow_html=True)

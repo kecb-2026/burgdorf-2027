@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Ansicht: Admin_Panel"""
 import streamlit as st
+from core.imports import reset_keep_protected
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -10,8 +11,9 @@ def render():
     display_header_with_logo("⚙️ Admin-Konsole")
     
     _reset_ok = st.checkbox("Ja, wirklich ALLE Stimmen und Status löschen", key="confirm_reset_all")
+    _keep_imp = st.checkbox("PDF-Importlisten (Abwesende / Nominierte) behalten", value=True, key="reset_keep_imports")
     if st.button("ALLE DATEN ZURÜCKSETZEN", disabled=not _reset_ok):
-        store.data = {}
+        reset_keep_protected(store, keep=_keep_imp)
         store.active_overlay = None
         store.save_backup()
         st.success("Speicher geleert!")

@@ -15,7 +15,22 @@ def roman_to_numeric(text):
 
 def load_labels():
     store = get_store()
-    return _load_labels_cached(store.data.get("admin_selected_day", "Tag 1"))
+    day = store.data.get("admin_selected_day", "Tag 1")
+    df = _load_labels_cached(day)
+    if df is None:
+        return None
+    # Importierte Nominierungslisten (PDF) ueberschreiben SELECTION n
+    from core.imports import apply_nom_overrides
+    df = apply_nom_overrides(df, store)
+    m_sel = re.search(r"\d+", str(day))
+    sel_col = f"SELECTION {m_sel.group() if m_sel else 1}"
+    if sel_col in df.columns:
+        df = df.copy() if df is not None else df
+        df['SELECTION'] = df[sel_col].astype(str).str.strip().str.upper()
+    return df
+
+
+load_labels.clear = lambda: _load_labels_cached.clear()
 
 
 @st.cache_data(ttl=600)

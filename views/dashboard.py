@@ -18,14 +18,14 @@ def render():
     df_full = load_labels()
     if df_full is not None:
         # Nur Richter zeigen, die in ihrer aktuellen Runde Katzen haben
-        judges = [j for j in all_judges(df_full) if not judge_cats(df_full, j, judge_round(store, j)).empty]
+        judges = [j for j in all_judges(df_full) if not judge_cats(df_full, j, judge_round(store, j), gated=True).empty]
         if judges:
             cols = st.columns(len(judges))
             for i, j in enumerate(judges):
                 rn = judge_round(store, j)
                 tag = tag_of(rn)
                 r_col = f"RICHTER {tag}"
-                df_tag = judge_cats(df_full, j, rn)
+                df_tag = judge_cats(df_full, j, rn, gated=True)
                 r_color, r_tint, r_on, r_text = round_color(rn), round_tint(rn), round_on_color(rn), round_label(rn, with_emoji=False)
                 with cols[i]:
                     st.markdown(judge_header_html(j, judges, bg=r_color, fg=r_on, border=r_color, sub=r_text), unsafe_allow_html=True)

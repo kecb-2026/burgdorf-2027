@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 from core.data import get_full_label, load_labels, real_judges, with_selection
 from core.store import get_store
-from core.ui import display_header_with_logo
+from core.ui import display_header_with_logo, round_banner
 
 
 def render():
@@ -22,6 +22,7 @@ def render():
         # Massgebend ist die Runde der freigegebenen Klasse; sonst die Standard-Runde
         tag = str(store.data.get("test_live_tag") or global_admin_day).upper()
         df_full = with_selection(df_full, tag)
+        round_banner(tag)
         
         r_col = f"RICHTER {tag}"
         if r_col not in df_full.columns:
