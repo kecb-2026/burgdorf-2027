@@ -1,0 +1,57 @@
+name: Streamlit Dauer-Wachkanal
+
+on:
+  schedule:
+    # Läuft jede Stunde zur vollen Stunde
+    - cron: '0 * * * *'
+  workflow_dispatch: # Erlaubt manuelles Starten zum Testen
+
+jobs:
+  wake_up:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Playwright (Bibliothek)
+        run: npm install playwright
+
+      - name: Install Chromium Browser
+        run: npx playwright install chromium
+
+      - name: Erstelle JavaScript-Skript
+        run: |
+          cat << 'EOF' > wake.js
+          const { chromium } = require('playwright');
+          (async () => {
+            console.log('Starte Browser...');
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage();
+            
+            console.log('Rufe Streamlit App auf...');
+            await page.goto('https://kecb2027.streamlit.app', { waitUntil: 'load', timeout: 60000 });
+            
+            const wakeUpButton = page.locator('button:has-text("Yes, get this app back up")');
+            
+            try {
+                // Wartet maximal 15 Sekunden auf den Button
+                await wakeUpButton.waitFor({ state: 'visible', timeout: 15000 });
+                console.log('App schläft! Klicke auf den Aufwach-Button...');
+                await wakeUpButton.click();
+                
+                console.log('Warte 45 Sekunden auf den Boot-Vorgang...');
+                await page.waitForTimeout(45000);
+            } catch (error) {
+                console.log('Kein Aufwach-Button erschienen. App ist vermutlich schon wach.');
+            }
+            
+            await page.waitForTimeout(5000);
+            await browser.close();
+            console.log('Vorgang erfolgreich beendet.');
+          })();
+          EOF
+
+      - name: App im echten Browser laden & wecken
+        run: node wake.js
