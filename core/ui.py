@@ -47,3 +47,24 @@ def set_view(name):
     store.active_overlay = None   
     st.session_state.view = name
     st.rerun()
+
+
+def judge_header_html(name, all_names, bg=None, fg=None, border=None, sub=None, extra_class=""):
+    """Richter-Kopf: Vorname / Nachname in 2 Zeilen, gleiche Schrift fuer alle, kein Umbruch mitten im Wort.
+    Die Schriftgroesse richtet sich (via Container-Query) nach dem laengsten Wort aller Richter und der Spaltenbreite."""
+    import html as _h
+    def split(n):
+        parts = str(n).split()
+        if len(parts) <= 1:
+            return str(n), ""
+        return parts[0], " ".join(parts[1:])
+    longest = max([max(len(w) for w in str(n).split()) if str(n).split() else 1 for n in all_names] + [6])
+    fs = min(13.0, 88.0 / (0.72 * longest))  # cqw
+    a, b = split(name)
+    style = ""
+    if bg: style += f"background-color:{bg};"
+    if fg: style += f"color:{fg};"
+    if border: style += f"border-color:{border};"
+    sub_html = f"<div class='jh-sub'>{_h.escape(sub)}</div>" if sub else ""
+    return (f"<div class='jh-wrap'><div class='jh-box {extra_class}' style='{style}--jhfs:{fs:.2f}cqw;'>"
+            f"<div class='jh-first'>{_h.escape(a)}</div><div class='jh-last'>{_h.escape(b)}</div>{sub_html}</div></div>")

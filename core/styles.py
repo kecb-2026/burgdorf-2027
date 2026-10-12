@@ -237,6 +237,14 @@ def inject_global_css():
         display: flex; align-items: center; justify-content: center; 
     }
     
+    .jh-wrap { container-type: inline-size; width: 100%; margin-bottom: 10px; }
+    .jh-box { background-color: #1a4a9e; color: white; border: 2px solid #0d2a5e; border-radius: 10px; box-sizing: border-box;
+        height: 104px; padding: 4px 3px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; text-transform: uppercase; font-weight: 900; line-height: 1.12; overflow: hidden; }
+    .jh-first, .jh-last { font-size: var(--jhfs, 11cqw); white-space: nowrap; max-width: 100%; }
+    .jh-last { min-height: 1.12em; }
+    .jh-sub { font-size: 7.5cqw; font-weight: 600; text-transform: none; margin-top: 3px; white-space: nowrap; opacity: .95; }
+
     .class-label-box { 
         background-color: #e9ecef; color: #1a4a9e; padding: 5px; border-radius: 10px; text-align: center; 
         font-size: clamp(14px, 1.3vw, 22px) !important; text-transform: uppercase; font-weight: 900;
@@ -250,10 +258,10 @@ def inject_global_css():
     .cat-number { font-size: 28px !important; font-weight: 900 !important; color: #1a4a9e; line-height: 1.0; }
     .cat-details { font-size: 14px !important; color: #333; font-weight: bold; margin-top: 2px; line-height: 1.1; }
 
-	.cat-card.dash-big { height: 100px; min-height: 100px; max-height: 100px; overflow: hidden; box-sizing: border-box; padding: 4px; }
-    .cat-card.dash-big .cat-number { font-size: 33px !important; }
-    .cat-card.dash-big .cat-details { font-size: 17px !important; }
-    .cat-card.dash-big .tag { font-weight: 400; padding: 2px 8px; font-size: 17px; }
+	.cat-card.dash-big { height: auto; min-height: 125px; max-height: none; overflow: visible; box-sizing: border-box; padding: 6px 4px; }
+    .cat-card.dash-big .cat-number { font-size: 38px !important; }
+    .cat-card.dash-big .cat-details { font-size: 17px !important; white-space: normal; overflow: visible; }
+    .cat-card.dash-big .tag { font-weight: 400; padding: 2px 7px; font-size: 15px; }
 
     /* Richter Initialen Kreise */
     .judge-initials-container {
