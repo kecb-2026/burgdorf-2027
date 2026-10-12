@@ -9,7 +9,7 @@ from core.store import get_store
 from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
 from core.data import class_mask
 from core.gate import cat_key, get_bis_order
-from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner, order_strip
+from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
 
 
 def render():
@@ -68,14 +68,12 @@ def render():
         _match = [c for c in available_cats if _forced is not None and str(c).replace(".0", "") == str(_forced).replace(".0", "")]
         if _match:
             sel_cat = _match[0]
-            st.markdown(f"<div style='font-size:15px; color:#555; margin-bottom:6px;'>Kategorie <b>{sel_cat}</b></div>", unsafe_allow_html=True)
         else:
             sel_cat = st.selectbox("Kategorie:", available_cats, index=cat_index)
         
         st.session_state['bis_stable_tag'] = tag
         st.session_state['bis_stable_cat'] = sel_cat
         round_banner(tag, big=True, cat=sel_cat)
-        order_strip(get_bis_order(store, tag, available_cats), sel_cat)
         _noclass = cat_key(sel_cat) in NO_CLASS_CATEGORIES
 
         # --- DYNAMISCHE SPALTEN-WEICHE FÜR DIE 2 TAGE ---

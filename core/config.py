@@ -25,10 +25,10 @@ FIFe_KLASSEN_NAMEN = {
 }
 
 ACCESS_MAP = {
-    "Public": ["Dashboard", "Live_Handy", "BIS_Public", "Login"],
-    "Richter": ["Live_Voting", "Dashboard", "Live_Handy", "BIS_Public"],
-    "Steward": ["Steward_Panel", "Dashboard", "BIS_Public"],
-    "Admin": ["Home", "Rundenmanager", "Dashboard", "Live_Handy", "BIS_Public", "Moderator", "Steward_Panel", "Live_Admin", "Live_Voting",
+    "Public": ["Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf", "Login"],
+    "Richter": ["Live_Voting", "Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf"],
+    "Steward": ["Steward_Panel", "Dashboard", "BIS_Public", "BIS_Ablauf"],
+    "Admin": ["Home", "Rundenmanager", "Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf", "Moderator", "Steward_Panel", "Live_Admin", "Live_Voting",
               "QR_Codes_Gen", "Nominated_Cats", "Judge_List", "Nomination_Labels", "Admin_Panel",
               "Excel_Upload", "Excel_Edit", "Import_PDF"],
 }

@@ -8,7 +8,7 @@ from core.data import class_mask, load_labels
 from core.rounds import active_rounds, default_round, round_label, tag_of
 from core.bis import cat_status, set_manual_ready
 from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
-from core.gate import cat_key, get_bis_order, get_show_day, is_open as is_cat_open, set_bis_order
+from core.gate import cat_key, get_bis_order, get_bis_start, set_bis_start, get_show_day, is_open as is_cat_open, set_bis_order
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -110,11 +110,21 @@ def render():
             _val = [o for o in _opts if str(o).replace(".0", "") == _nxt][0]
             st.session_state[f"admin_sel_cat_{_tag}"] = _val
             _push_to_bis_screen(_tag)
-        with st.expander("📋 Reihenfolge der Kategorien beim BIS", expanded=False):
+        _raw = store.data.get("bis_order")
+        _raw = _raw.get(admin_tag) if isinstance(_raw, dict) else None
+        if _ord_key not in st.session_state:
+            st.session_state[_ord_key] = [c for c in (_raw or _all_cats) if c in _all_cats]
+        _st_key = f"bis_start_in_{admin_tag}"
+        def _start_changed(_tag=admin_tag, _k=_st_key):
+            set_bis_start(store, _tag, st.session_state[_k].strip())
+        if _st_key not in st.session_state:
+            st.session_state[_st_key] = get_bis_start(store, admin_tag)
+        with st.expander("📋 Reihenfolge der Kategorien beim BIS (Ansicht «BIS_Ablauf»)", expanded=False):
+            st.multiselect("Reihenfolge (Kategorien in der durchgegebenen Reihenfolge anklicken; weggelassene Kategorien werden übersprungen):",
+                           _all_cats, key=_ord_key, on_change=_order_changed)
+            st.text_input("Best in Show startet um (z. B. 15:30):", key=_st_key, on_change=_start_changed)
             _cur_order = get_bis_order(store, admin_tag, _all_cats)
-            st.session_state[_ord_key] = _cur_order
-            st.multiselect("Reihenfolge (Kategorien in der durchgegebenen Reihenfolge anklicken):", _all_cats, key=_ord_key, on_change=_order_changed)
-            st.caption("Aktuell: " + " ➜ ".join(f"Kat {c}" for c in _cur_order) + ". Nicht angeklickte Kategorien kommen am Schluss.")
+            st.caption("Aktuell: " + " ➜ ".join(f"Kat {c}" for c in _cur_order))
         st.button("➡️ Nächste Kategorie (nach dieser Reihenfolge)", key=f"next_cat_{admin_tag}", on_click=_next_cat)
 
         if not is_cat_open(store, admin_round, sel_cat):

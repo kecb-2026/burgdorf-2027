@@ -64,12 +64,34 @@ def set_row(store, day, n, cats, open_cats):
 
 
 def get_bis_order(store, tag, all_cats):
-    """Reihenfolge der Kategorien fuer die BIS dieser Runde; nicht erwaehnte Kategorien kommen hinten dran."""
+    """Reihenfolge der Kategorien fuer die BIS dieser Runde.
+    Nie gespeichert -> alle Kategorien. Gespeichert -> genau diese (weggelassene Kategorien werden uebersprungen)."""
+    allk = [cat_key(x) for x in all_cats]
     saved = store.data.get(ORDER_KEY)
-    saved = saved.get(tag, []) if isinstance(saved, dict) else []
-    order = [cat_key(c) for c in saved if cat_key(c) in [cat_key(x) for x in all_cats]]
-    order += [cat_key(c) for c in all_cats if cat_key(c) not in order]
-    return order
+    saved = saved.get(tag) if isinstance(saved, dict) else None
+    if not saved:
+        return allk
+    order = []
+    for c in saved:
+        if cat_key(c) in allk and cat_key(c) not in order:
+            order.append(cat_key(c))
+    return order or allk
+
+
+BIS_START_KEY = "bis_start"
+
+
+def get_bis_start(store, tag):
+    d = store.data.get(BIS_START_KEY)
+    return str(d.get(tag, "")) if isinstance(d, dict) else ""
+
+
+def set_bis_start(store, tag, hhmm):
+    d = store.data.get(BIS_START_KEY)
+    d = dict(d) if isinstance(d, dict) else {}
+    d[tag] = hhmm
+    store.data[BIS_START_KEY] = d
+    store.save_backup()
 
 
 def set_bis_order(store, tag, order):

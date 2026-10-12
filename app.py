@@ -27,6 +27,7 @@ VIEWS = {
     "BIS_Public": "views.bis_public",
     "Dashboard": "views.dashboard",
     "Live_Handy": "views.live_handy",
+    "BIS_Ablauf": "views.bis_ablauf",
     "Steward_Panel": "views.steward_panel",
     "QR_Codes_Gen": "views.qr_codes_gen",
     "Nominated_Cats": "views.nominated_cats",
