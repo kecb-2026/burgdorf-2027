@@ -183,14 +183,26 @@ def render():
                                 if winner_revealed:
                                     prefix = f"v_{tag}_{sel_cat}_{label}_"
                                     all_votes = store.data.get("votes", {})
-                                    voters = []
+                                    _tbd = store.data.get(f"tiebreak_{tag}_{sel_cat}_{label}")
+                                    _tbd = _tbd if isinstance(_tbd, dict) else {}
+                                    _tbj = set(_tbd.get("judges", []))
+                                    _old = _tbd.get("old") or {}
+                                    voters = []   # (Richter, entscheidend?)
                                     for v_key, v_val in all_votes.items():
                                         if v_key.startswith(prefix):
                                             voted_cat = v_val.get("katze") if isinstance(v_val, dict) else v_val
+                                            vj = v_key.replace(prefix, "")
                                             if str(voted_cat) == str(kat_nr):
-                                                voters.append(v_key.replace(prefix, ""))
+                                                voters.append((vj, vj in _tbj))
+                                    # Ursprüngliche Stimme eines Richters bei Neuabstimmung bleibt auf der Katze sichtbar
+                                    for oj, ov in _old.items():
+                                        oc = ov.get("katze") if isinstance(ov, dict) else ov
+                                        if str(oc) == str(kat_nr) and (oj, False) not in voters and (oj, True) not in voters:
+                                            voters.append((oj, False))
                                     if voters:
-                                        circles = "".join([f"<div class='judge-circle' title='{v}'>{get_initials(v)}</div>" for v in voters])
+                                        circles = "".join([
+                                            f"<div class='judge-circle{' decisive' if dec else ''}' title='{v}'>{get_initials(v)}</div>"
+                                            for v, dec in voters])
                                         circles_html = f"<div class='judge-initials-container'>{circles}</div>"
 
                                 card_css_class = "cat-card winner-card" if (winner_revealed and row_winner_nr and kat_nr == row_winner_nr) else "cat-card"
