@@ -30,11 +30,13 @@ def parse_text_numbers(text):
         s = line.strip()
         if not s:
             continue
-        if re.fullmatch(r"\d{1,4}", s):
-            n = str(int(s))
-            if n not in seen:
-                seen.add(n)
-                nums.append(n)
+        # Eine Zeile aus nur Zahlen (eine oder mehrere, z. B. bei mehrspaltigen Listen) = Katalognummern
+        if re.fullmatch(r"\d{1,4}(?:\s+\d{1,4})*", s):
+            for tok in s.split():
+                n = str(int(tok))
+                if n not in seen:
+                    seen.add(n)
+                    nums.append(n)
         else:
             ignored.append(s)
     return nums, date, ignored
