@@ -98,7 +98,6 @@ def render():
     klassen, geschl = _defs[label]
 
     r_col = f"RICHTER {tag}"
-    judges = sorted([str(r) for r in df_full[r_col].unique() if str(r) != "nan"])
 
     pool = df_full[
         (df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X')
@@ -111,6 +110,15 @@ def render():
     if not isinstance(votes, dict):
         votes = {}
     prefix = f"v_{tag}_{cat}_{label}_"
+
+    # Beteiligt sind nur Richter, die in dieser Klasse eine Katze nominiert haben,
+    # plus alle, die tatsächlich schon eine Stimme abgegeben haben.
+    _judge_set = set(str(r).strip() for r in pool[r_col].unique()
+                     if str(r).strip() not in ("", "nan", "-"))
+    for _k in votes:
+        if str(_k).startswith(prefix) and _mod_parse_vote(votes[_k])[1] != "none":
+            _judge_set.add(str(_k)[len(prefix):])
+    judges = sorted(_judge_set)
     override = store.data.get(f"override_{tag}_{cat}_{label}", "Automatisch (Stimmen)")
     per_judge, counts, n_conf, winner, source, note, revote = _mod_summary(votes, prefix, judges, override)
     winner_revealed = bool(store.data.get(f"winner_reveal_{tag}_{cat}_{label}", False))
@@ -227,9 +235,3 @@ def render():
                 f"</div>",
                 unsafe_allow_html=True,
             )
-
-
-
-# ==============================================================================
-# NEUER SEPARATER MENÜPUNKT: 🎛️  Excel-Upload
-# =============================================================================

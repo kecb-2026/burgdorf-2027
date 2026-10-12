@@ -4,7 +4,7 @@ from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
 import time
-from core.data import get_full_label, load_labels
+from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
 from core.ui import display_header_with_logo, render_overlay_html
 
@@ -78,7 +78,7 @@ def render():
         ]
         
         r_col = f"RICHTER {tag}"
-        judges = sorted([r for r in df_full[df_full[tag].astype(str).str.strip().str.upper() == 'X'][r_col].unique() if str(r) != "nan"])
+        judges = sorted(real_judges(df_full[df_full[tag].astype(str).str.strip().str.upper() == 'X'][r_col]))
 
         cats_in_this_cat = df_full[
             (df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X') & 

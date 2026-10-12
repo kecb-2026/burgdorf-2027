@@ -3,7 +3,7 @@
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
-from core.data import get_full_label, load_labels
+from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -22,7 +22,7 @@ def render():
         tag = global_admin_day.upper()
         
         r_col = f"RICHTER {tag}"
-        all_judges = sorted([r for r in df_full[r_col].unique() if str(r) != "nan"])
+        all_judges = sorted(real_judges(df_full[r_col]))
         
         # 1. LIVE-WERTE AUS DEM TEST-ADMIN AUSLESEN
         active_cat = store.data.get("test_live_cat")

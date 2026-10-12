@@ -70,3 +70,9 @@ def get_full_label(row):
         return f"{r} {g_str}, {e}".strip()
     else:
         return f"{r} {e}".strip()
+
+
+def real_judges(series):
+    """Echte Richternamen aus einer Excel-Spalte (ohne leere Felder, nan und -)."""
+    names = {str(r).strip() for r in series.unique()}
+    return sorted(n for n in names if n and n.lower() != "nan" and n != "-")

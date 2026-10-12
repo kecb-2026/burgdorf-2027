@@ -2,7 +2,7 @@
 """Ansicht: Dashboard"""
 from streamlit_autorefresh import st_autorefresh
 import streamlit as st
-from core.data import get_full_label, load_labels
+from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -25,7 +25,7 @@ def render():
         # Filtert das Excel NUR auf Zeilen, die am aktuellen Tag ein 'X' haben
         df_tag = df_full[df_full[tag].astype(str).str.upper() == 'X'].copy()
         
-        judges = sorted([r for r in df_tag[r_col].unique() if str(r) != "nan"])
+        judges = sorted(real_judges(df_tag[r_col]))
         if judges:
             cols = st.columns(len(judges))
             for i, j in enumerate(judges):

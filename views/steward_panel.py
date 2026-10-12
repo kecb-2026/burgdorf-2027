@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 import time
 from core.config import FIFe_KLASSEN_NAMEN
-from core.data import get_full_label, load_labels
+from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -31,8 +31,8 @@ def render():
         
         # 3. Wenn ein Richtername übergeben wurde, deine originale Logik prüfen:
         if url_judge_name != "--":
-            j_t1 = [r for r in df_full['RICHTER TAG 1'].unique() if str(r) != "nan"] if 'RICHTER TAG 1' in df_full.columns else []
-            j_t2 = [r for r in df_full['RICHTER TAG 2'].unique() if str(r) != "nan"] if 'RICHTER TAG 2' in df_full.columns else []
+            j_t1 = real_judges(df_full['RICHTER TAG 1']) if 'RICHTER TAG 1' in df_full.columns else []
+            j_t2 = real_judges(df_full['RICHTER TAG 2']) if 'RICHTER TAG 2' in df_full.columns else []
             
             if url_judge_name in j_t2 and url_judge_name not in j_t1:
                 calculated_tag = "TAG 2"
@@ -44,7 +44,7 @@ def render():
         st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
         
         r_col = f"RICHTER {tag}"
-        all_j = sorted([r for r in df_full[df_full[tag].astype(str).str.upper() == 'X'][r_col].unique() if str(r) != "nan"])
+        all_j = sorted(real_judges(df_full[df_full[tag].astype(str).str.upper() == 'X'][r_col]))
         
         # Berechnen des Default-Index für die Richter-Selectbox
         default_idx = 0

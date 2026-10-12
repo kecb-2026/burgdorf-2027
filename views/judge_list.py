@@ -2,7 +2,7 @@
 """Ansicht: Judge_List"""
 import pandas as pd
 import streamlit as st
-from core.data import load_labels
+from core.data import load_labels, real_judges
 from core.ui import display_header_with_logo, set_view
 
 
@@ -16,7 +16,7 @@ def render():
         # Funktion zur Tabellen-Generierung, damit kein Code doppelt existiert oder gekürzt wird
         def render_judge_table(tag_key, r_col, suffix):
             # Alle Richter holen, die an diesem Tag aktiv sind
-            all_j = sorted([r for r in df_full[df_full[tag_key].astype(str).str.upper() == 'X'][r_col].unique() if str(r) != "nan"])
+            all_j = sorted(real_judges(df_full[df_full[tag_key].astype(str).str.upper() == 'X'][r_col]))
             
             c1, c2 = st.columns(2)
             mein_richter = c1.selectbox("Richter filtern:", ["--"] + all_j, key=f"jl_judge_{suffix}")

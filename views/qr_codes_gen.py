@@ -14,7 +14,7 @@ from reportlab.platypus import TableStyle
 import qrcode
 import streamlit as st
 from core.config import BASE_URL, SHOW_YEAR
-from core.data import load_labels
+from core.data import load_labels, real_judges
 from core.ui import display_header_with_logo, set_view
 
 
@@ -78,7 +78,7 @@ def render():
         
         # --- Daten sammeln: Tag 1 ---
         if df is not None and 'RICHTER TAG 1' in df.columns:
-            judges_t1 = sorted([r for r in df['RICHTER TAG 1'].unique() if str(r) != "nan"])
+            judges_t1 = sorted(real_judges(df['RICHTER TAG 1']))
             for judge in judges_t1:
                 # Stewards Tag 1
                 stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=1"
@@ -90,7 +90,7 @@ def render():
                 
         # --- Daten sammeln: Tag 2 ---
         if df is not None and 'RICHTER TAG 2' in df.columns:
-            judges_t2 = sorted([r for r in df['RICHTER TAG 2'].unique() if str(r) != "nan"])
+            judges_t2 = sorted(real_judges(df['RICHTER TAG 2']))
             for judge in judges_t2:
                 # Stewards Tag 2
                 stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=2"
@@ -189,7 +189,7 @@ def render():
             st.write("Diese QR-Codes filtern fest auf die Richter von Tag 1:")
             
             if 'RICHTER TAG 1' in df_full.columns:
-                judges_t1 = sorted([r for r in df_full['RICHTER TAG 1'].unique() if str(r) != "nan"])
+                judges_t1 = sorted(real_judges(df_full['RICHTER TAG 1']))
                 if judges_t1:
                     s_cols_t1 = st.columns(3)
                     for idx, judge in enumerate(judges_t1):
@@ -212,7 +212,7 @@ def render():
             st.write("Diese QR-Codes filtern fest auf die Richter von Tag 2:")
             
             if 'RICHTER TAG 2' in df_full.columns:
-                judges_t2 = sorted([r for r in df_full['RICHTER TAG 2'].unique() if str(r) != "nan"])
+                judges_t2 = sorted(real_judges(df_full['RICHTER TAG 2']))
                 if judges_t2:
                     s_cols_t2 = st.columns(3)
                     for idx, judge in enumerate(judges_t2):
@@ -231,7 +231,7 @@ def render():
         st.subheader("Richter-Direkt-Links für TAG 1")
         if df_full is not None:
             if 'RICHTER TAG 1' in df_full.columns:
-                judges_t1 = sorted([r for r in df_full['RICHTER TAG 1'].unique() if str(r) != "nan"])
+                judges_t1 = sorted(real_judges(df_full['RICHTER TAG 1']))
                 if judges_t1:
                     j_cols = st.columns(3)
                     for idx, judge in enumerate(judges_t1):
@@ -250,7 +250,7 @@ def render():
         st.subheader("Richter-Direkt-Links für TAG 2")
         if df_full is not None:
             if 'RICHTER TAG 2' in df_full.columns:
-                judges_t2 = sorted([r for r in df_full['RICHTER TAG 2'].unique() if str(r) != "nan"])
+                judges_t2 = sorted(real_judges(df_full['RICHTER TAG 2']))
                 if judges_t2:
                     j_cols = st.columns(3)
                     for idx, judge in enumerate(judges_t2):
