@@ -327,6 +327,18 @@ def render():
 
     with c_judges:
         st.markdown("### Richter")
+        def _jcard(name, nrtxt, txt, bg):
+            st.markdown(
+                f"<div style='display:flex; align-items:center; gap:12px; background:{bg}; border-radius:10px; padding:10px 14px; margin-bottom:8px;'>"
+                f"<div style='flex:1;'>"
+                f"<div style='font-size:18px; font-weight:bold;'>{_e(name)}</div>"
+                f"<div style='font-size:14px;'>{txt}</div>"
+                f"</div>"
+                f"<div style='font-size:26px; font-weight:900; color:#1a4a9e;'>{nrtxt}</div>"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
         for j in judges:
             k, s = per_judge[j]
             if s == "bestaerkt":
@@ -335,13 +347,15 @@ def render():
                 bg, txt, nrtxt = "#ffe0b2", "✏️ wählt noch", f"#{_e(k)}"
             else:
                 bg, txt, nrtxt = "#e9ecef", "⏳ noch keine Wahl", "–"
-            st.markdown(
-                f"<div style='display:flex; align-items:center; gap:12px; background:{bg}; border-radius:10px; padding:10px 14px; margin-bottom:8px;'>"
-                f"<div style='flex:1;'>"
-                f"<div style='font-size:18px; font-weight:bold;'>{_e(j)}{' (Stichentscheid)' if (_tb and j in _tb.get('judges', [])) else ''}</div>"
-                f"<div style='font-size:14px;'>{txt}</div>"
-                f"</div>"
-                f"<div style='font-size:26px; font-weight:900; color:#1a4a9e;'>{nrtxt}</div>"
-                f"</div>",
-                unsafe_allow_html=True,
-            )
+            if _tb and j in _tb.get("judges", []):
+                _o = (_tb.get("old") or {}).get(j)
+                if _o is not None:
+                    # ursprüngliche Stimme bleibt als normale Karte stehen
+                    _okat = _mod_parse_vote(_o)[0]
+                    _jcard(j, f"#{_e(_okat)}", "✅ bestätigt", "#c8e6c9")
+                if s == "bestaerkt":
+                    bg = "#f5b301"
+                _jcard(f"{j} (Stichentscheid)", nrtxt, txt, bg)
+            else:
+                _jcard(j, nrtxt, txt, bg)
+

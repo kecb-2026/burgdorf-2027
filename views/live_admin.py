@@ -253,6 +253,9 @@ def render():
                     if "votes" in store.data:
                         rows = []
                         confirmed_votes_for_summary = []
+                        _tbd = store.data.get(f"tiebreak_{admin_tag}_{sel_cat}_{label}")
+                        _tbd = _tbd if isinstance(_tbd, dict) else {}
+                        _tbj = set(_tbd.get("judges", []))
                         
                         for k, v in store.data["votes"].items():
                             if k.startswith(v_prefix) and v != "Keine Wahl" and v != "Keine Wahl/Not chosen yet":
@@ -266,11 +269,23 @@ def render():
                                 # Status-Emoji bestimmen
                                 status_emoji = "✅ Bestätigt" if status == "bestaerkt" else "⏳ Wählt..."
                                 
-                                rows.append({
-                                    "Richter": r_name, 
-                                    "Wahl (Kat Nr.)": f"#{kat_nr}",
-                                    "Status": status_emoji
-                                })
+                                if r_name in _tbj:
+                                    _ov0 = (_tbd.get("old") or {}).get(r_name)
+                                    if _ov0 is not None:
+                                        # Ursprüngliche Stimme bleibt als normale Zeile stehen (zählt nicht mehr)
+                                        _oc0 = _ov0.get("katze", "N/A") if isinstance(_ov0, dict) else _ov0
+                                        rows.append({"Richter": r_name, "Wahl (Kat Nr.)": f"#{_oc0}", "Status": "✅ Bestätigt"})
+                                    rows.append({
+                                        "Richter": f"{r_name} (Stichentscheid)",
+                                        "Wahl (Kat Nr.)": f"#{kat_nr}",
+                                        "Status": status_emoji
+                                    })
+                                else:
+                                    rows.append({
+                                        "Richter": r_name, 
+                                        "Wahl (Kat Nr.)": f"#{kat_nr}",
+                                        "Status": status_emoji
+                                    })
                                 
                                 # Für die mathematische Zusammenfassung zählen nur bestätigte Stimmen
                                 if status == "bestaerkt":
@@ -281,6 +296,8 @@ def render():
                             
                             # Schickes farbliches Highlight-Styling für die Tabelle (Grün für Bestätigt, Gelb für Entwurf)
                             def highlight_status(row):
+                                if "(Stichentscheid)" in str(row["Richter"]) and "✅" in str(row["Status"]):
+                                    return ['background-color: #f5b301; color: #1a1a1a; font-weight: bold'] * len(row)
                                 if "✅" in str(row["Status"]):
                                     return ['background-color: #d4edda; color: #155724'] * len(row)
                                 return ['background-color: #fff3cd; color: #856404'] * len(row)
