@@ -91,7 +91,7 @@ def render():
                         
                         if tags_html: 
                             st.markdown(f"""
-                                <div class='cat-card dash-big' style='background-color:{r_tint}; border-color:{r_color};'>
+                                <div class='cat-card dash-big' style='background-color:#f0f0f0; border:3px solid #1a4a9e; border-left:12px solid {r_color};'>
                                     <div class='cat-number'>{kat_nr}</div>
                                     <div class='cat-details'>{get_full_label(m_row)}</div>
                                     <div class='tag-container'>{tags_html}</div>
