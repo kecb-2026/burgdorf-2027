@@ -287,6 +287,7 @@ def inject_global_css():
         cursor: help;
     }
 
+    .judge-circle.decisive { background-color:#f5b301 !important; color:#1a1a1a !important; border:2px solid #b8860b; box-sizing:border-box; }
     .cat-card.bis-card { padding: 2px 4px; justify-content: center; }
     .cat-card.bis-card .bis-top { display: flex; flex-direction: column; align-items: center; gap: 0; width: 100%; }
     .cat-card.bis-card .cat-number { font-size: 32px !important; line-height: 1; }
