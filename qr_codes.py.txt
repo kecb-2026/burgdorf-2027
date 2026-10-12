@@ -1,0 +1,251 @@
+# Nicht erreichbare Ansicht "QR_Codes" aus app_100.py (nicht im Menue, nicht verlinkt)
+    display_header_with_logo("📱 QR-Code Login Zentrale")
+    st.write("Lass die Richter und Mitarbeiter diesen QR-Code scannen, um sich sofort ohne Passwort einzuloggen.")
+    
+    df_full = load_labels()
+    
+    # Basis-URL deiner App
+    base_url = "https://kecb2026.streamlit.app/"
+    
+    # 1. Hilfsfunktion zum Zeichnen der QR-Codes für die Streamlit-UI
+    def generate_qr_image(url_to_encode):
+        qr = qrcode.QRCode(version=1, box_size=10, border=2)
+        qr.add_data(url_to_encode)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return buf.getvalue()
+
+    # 2. PDF-Generierungsfunktion (Getrennter Admin-Block & Emoji-frei)
+    def generate_pdf_download(df):
+        pdf_buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            pdf_buffer, 
+            pagesize=letter,
+            rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36
+        )
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle('DocTitle', parent=styles['Heading1'], fontSize=20, leading=24, spaceAfter=15, textColor=colors.HexColor("#1A365D"), alignment=1)
+        section_style = ParagraphStyle('DocSection', parent=styles['Heading2'], fontSize=12, leading=15, spaceBefore=15, spaceAfter=6, textColor=colors.HexColor("#2B6CB0"))
+        label_style = ParagraphStyle('DocLabel', parent=styles['Normal'], fontSize=9, leading=12, alignment=1, textColor=colors.HexColor("#2D3748"))
+        
+        story = []
+        story.append(Paragraph("QR-Code Login Zentrale - Burgdorf 2026", title_style))
+        story.append(Spacer(1, 10))
+        
+        # --- FIX: ADMIN DIREKT ZEICHNEN (Nicht im 3er-Raster der Richter!) ---
+        story.append(Paragraph("1. Allgemeine Logins und Admins", section_style))
+        adm_url = f"{base_url}?view=admin&auth=true&role=Admin"
+        
+        qr = qrcode.QRCode(version=1, box_size=4, border=1)
+        qr.add_data(adm_url)
+        qr.make(fit=True)
+        img_pil = qr.make_image(fill_color="black", back_color="white")
+        img_buf = BytesIO()
+        img_pil.save(img_buf, format="PNG")
+        img_buf.seek(0)
+        
+        # Platziert den Admin zentriert als Einzelelement
+        admin_table = Table([[Paragraph("<b>ADMIN MAIN HOME</b>", label_style)], [Image(img_buf, width=90, height=90)]], colWidths=[180])
+        admin_table.setStyle(TableStyle([('ALIGN', (0,0), (-1,-1), 'CENTER')]))
+        story.append(admin_table)
+        story.append(Spacer(1, 15))
+        
+        # --- AB HIER NUR NOCH DIE LISTEN FÜR STUFENWEISE RASTER SAMMELN ---
+        all_qr_items = []
+        
+        # --- Daten sammeln: Tag 1 ---
+        if df is not None and 'RICHTER TAG 1' in df.columns:
+            judges_t1 = sorted([r for r in df['RICHTER TAG 1'].unique() if str(r) != "nan"])
+            for judge in judges_t1:
+                # Stewards Tag 1
+                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=1"
+                all_qr_items.append((f"Steward fuer: {judge}", stew_url, "2. Steward-Links fuer TAG 1 (Samstag)"))
+                
+                # Richter Direkt Tag 1
+                j_url = f"{base_url}?view=richter&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=1"
+                all_qr_items.append((f"Richter: {judge} (Tag 1)", j_url, "3. Richter-Direkt-Links fuer TAG 1 (Samstag)"))
+                
+        # --- Daten sammeln: Tag 2 ---
+        if df is not None and 'RICHTER TAG 2' in df.columns:
+            judges_t2 = sorted([r for r in df['RICHTER TAG 2'].unique() if str(r) != "nan"])
+            for judge in judges_t2:
+                # Stewards Tag 2
+                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=2"
+                all_qr_items.append((f"Steward fuer: {judge}", stew_url, "4. Steward-Links fuer TAG 2 (Sonntag)"))
+                
+                # Richter Direkt Tag 2
+                j_url = f"{base_url}?view=richter&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=2"
+                all_qr_items.append((f"Richter: {judge} (Tag 2)", j_url, "5. Richter-Direkt-Links fuer TAG 2 (Sonntag)"))
+        
+        # --- Grid im PDF generieren ---
+        unique_sections = list(dict.fromkeys([item[2] for item in all_qr_items]))
+        for current_section in unique_sections:
+            story.append(Paragraph(current_section, section_style))
+            story.append(Spacer(1, 4))
+            
+            section_items = [item for item in all_qr_items if item[2] == current_section]
+            cells = []
+            
+            for label, url, _ in section_items:
+                qr = qrcode.QRCode(version=1, box_size=4, border=1)
+                qr.add_data(url)
+                qr.make(fit=True)
+                img_pil = qr.make_image(fill_color="black", back_color="white")
+                
+                img_buf = BytesIO()
+                img_pil.save(img_buf, format="PNG")
+                img_buf.seek(0)
+                
+                rl_img = Image(img_buf, width=90, height=90)
+                
+                cell_content = [
+                    Paragraph(f"<b>{label}</b>", label_style),
+                    Spacer(1, 3),
+                    rl_img,
+                    Spacer(1, 10)
+                ]
+                cells.append(cell_content)
+            
+            grid_data = []
+            row = []
+            for i, cell in enumerate(cells):
+                row.append(cell)
+                if (i + 1) % 3 == 0 or (i + 1) == len(cells):
+                    while len(row) < 3:
+                        row.append(Paragraph("", label_style)) # Saubere leere Zelle
+                    grid_data.append(row)
+                    row = []
+            
+            if grid_data:
+                table_grid = Table(grid_data, colWidths=[180, 180, 180])
+                table_grid.setStyle(TableStyle([
+                    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                    ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ]))
+                story.append(table_grid)
+                story.append(Spacer(1, 5))
+
+        doc.build(story)
+        pdf_buffer.seek(0)
+        return pdf_buffer.getvalue()
+
+    # ---------------- DYNAMIC DOWNLOAD BUTTON ----------------
+    st.write("### 🖨️ Druckansicht & Export")
+    try:
+        pdf_data = generate_pdf_download(df_full)
+        st.download_button(
+            label="📄 ALLE QR-Codes (Admins, Stewards & Richter) als PDF herunterladen",
+            data=pdf_data,
+            file_name="Alle_QR_Codes_Burgdorf_2026.pdf",
+            mime="application/pdf",
+            use_container_width=True
+        )
+    except Exception as e:
+        st.error(f"Fehler bei der PDF-Erstellung: {e}")
+    
+    st.divider()
+
+    # Registerkarten für die Übersichtlichkeit (Web-Ansicht)
+    tab1, tab2, tab3 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter (Tag 1)", "👨‍⚖️ Richter (Tag 2)"])
+    
+    # ---------------- TAB 1: STEWARDS & ADMINS ----------------
+    with tab1:
+        st.subheader("Allgemeine Logins")
+        col_adm, _ = st.columns(2)
+        with col_adm:
+            st.warning("⚙️ ADMIN MAIN HOME")
+            adm_url = f"{base_url}?view=admin&auth=true&role=Admin"
+            st.image(generate_qr_image(adm_url), width=230)
+            st.caption(f"[Link kopieren]({adm_url})")
+            
+        st.divider()
+        
+        if df_full is not None:
+            # --- SEKTION: TAG 1 ---
+            st.markdown("### 📝 Steward-Links für TAG 1 (Samstag)")
+            st.write("Diese QR-Codes filtern fest auf die Richter von Tag 1:")
+            
+            if 'RICHTER TAG 1' in df_full.columns:
+                judges_t1 = sorted([r for r in df_full['RICHTER TAG 1'].unique() if str(r) != "nan"])
+                if judges_t1:
+                    s_cols_t1 = st.columns(3)
+                    for idx, judge in enumerate(judges_t1):
+                        with s_cols_t1[idx % 3]:
+                            st.info(f"Steward für: {judge}")
+                            stew_url_t1 = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=1"
+                            st.image(generate_qr_image(stew_url_t1), width=200)
+                            st.write("---")
+                else:
+                    st.write("Keine Richter für Tag 1 gefunden.")
+            else:
+                st.error("Spalte 'RICHTER TAG 1' fehlt in den Daten!")
+                
+            st.write("") 
+            st.divider()
+            st.write("") 
+            
+            # --- SEKTION: TAG 2 ---
+            st.markdown("### 📝 Steward-Links für TAG 2 (Sonntag)")
+            st.write("Diese QR-Codes filtern fest auf die Richter von Tag 2:")
+            
+            if 'RICHTER TAG 2' in df_full.columns:
+                judges_t2 = sorted([r for r in df_full['RICHTER TAG 2'].unique() if str(r) != "nan"])
+                if judges_t2:
+                    s_cols_t2 = st.columns(3)
+                    for idx, judge in enumerate(judges_t2):
+                        with s_cols_t2[idx % 3]:
+                            st.info(f"Steward für: {judge}")
+                            stew_url_t2 = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}&day=2"
+                            st.image(generate_qr_image(stew_url_t2), width=200)
+                            st.write("---")
+                else:
+                    st.write("Keine Richter für Tag 2 gefunden.")
+            else:
+                st.error("Spalte 'RICHTER TAG 2' fehlt in den Daten!")
+                
+    # ---------------- TAB 2: RICHTER TAG 1 ----------------
+    with tab2:
+        st.subheader("Richter-Direkt-Links für TAG 1")
+        if df_full is not None:
+            if 'RICHTER TAG 1' in df_full.columns:
+                judges_t1 = sorted([r for r in df_full['RICHTER TAG 1'].unique() if str(r) != "nan"])
+                if judges_t1:
+                    j_cols = st.columns(3)
+                    for idx, judge in enumerate(judges_t1):
+                        with j_cols[idx % 3]:
+                            st.success(f"Richter: {judge}")
+                            j_url = f"{base_url}?view=richter&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=1"
+                            st.image(generate_qr_image(j_url), width=200)
+                            st.write("---")
+                else:
+                    st.write("Keine Richter für Tag 1 gefunden.")
+            else:
+                st.error("Spalte 'RICHTER TAG 1' fehlt in den Daten!")
+
+    # ---------------- TAB 3: RICHTER TAG 2 ----------------
+    with tab3:
+        st.subheader("Richter-Direkt-Links für TAG 2")
+        if df_full is not None:
+            if 'RICHTER TAG 2' in df_full.columns:
+                judges_t2 = sorted([r for r in df_full['RICHTER TAG 2'].unique() if str(r) != "nan"])
+                if judges_t2:
+                    j_cols = st.columns(3)
+                    for idx, judge in enumerate(judges_t2):
+                        with j_cols[idx % 3]:
+                            st.success(f"Richter: {judge}")
+                            j_url = f"{base_url}?view=richter&auth=true&role=Richter&judge={judge.replace(' ', '+')}&day=2"
+                            st.image(generate_qr_image(j_url), width=200)
+                            st.write("---")
+                else:
+                    st.write("Keine Richter für Tag 2 gefunden.")
+            else:
+                st.error("Spalte 'RICHTER TAG 2' fehlt in den Daten!")
+                
+    # --- ZURÜCK NAVI ---
+    if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_qrcode"):
+        set_view("Home")
+
+# --- NEU NEU NEUER MENÜPUNKT: QR CODES GENERIEREN---

@@ -1,0 +1,82 @@
+# Nicht erreichbare Ansicht "BIS_Admin_Control" aus app_100.py (nicht im Menue, nicht verlinkt)
+    display_header_with_logo("👑 BIS Admin Control")
+    df_full = load_labels()
+    
+    if df_full is not None:
+        # --- HIER DIE NEUE RADIO-BOX FÜR DIE TAGE EINFÜGEN ---
+        admin_tag = st.radio("Ausstellungstag verwalten:", ["Tag 1", "Tag 2"], horizontal=True, key="admin_day_selector").upper()
+        
+        # Spaltenname dynamisch bestimmen (SELECTION 1 oder SELECTION 2)
+        sel_col = f"SELECTION {admin_tag.replace('TAG ', '')}"
+        
+        # Wir überschreiben temporär im geladenen Dataframe die 'SELECTION' Spalte,
+        # damit alle nachfolgenden Filter im originalen Code (pool = df_full[df_full['SELECTION']...]) unverändert weiterlaufen!
+        if sel_col in df_full.columns:
+            df_full['SELECTION'] = df_full[sel_col]
+        # -----------------------------------------------------
+
+    if df_full is not None:
+        # Auch die Kategorie-Auswahl braucht einen tagesabhängigen Key
+        sel_cat = st.selectbox("Kategorie verwalten:", sorted(df_full['KATEGORIE'].unique()), key=f"admin_sel_cat_{admin_tag}")
+        bis_defs = [("Adult Male", [1,3,5,7,9], "M"), ("Adult Female", [1,3,5,7,9], "W"), ("Neuter Male", [2,4,6,8,10], "M"), ("Neuter Female", [2,4,6,8,10], "W"), ("Junior 8-12 Male", [11], "M"), ("Junior 8-12 Female", [11], "W"), ("Kitten 4-8 Male", [12], "M"), ("Kitten 4-8 Female", [12], "W")]
+        
+        for label, klassen, geschl in bis_defs:
+            # Der Expander-Key wird tagesabhängig, damit der Auf-/Zuklapp-Status nicht vermischt wird
+            with st.expander(f"KLASSE: {label} ({admin_tag})", expanded=True):
+                c_ctrl, c_votes = st.columns([1, 1.2])
+                
+                # Der v_prefix enthält jetzt den Tag, damit die Stimmen von Tag 1 und Tag 2 getrennt gesucht werden
+                v_prefix = f"v_{admin_tag}_{sel_cat}_{label}_"
+                
+                with c_ctrl:
+                    st.markdown("**Steuerung**")
+                    
+                    # Die Datenschlüssel im store.data erhalten den Tag, damit Werte getrennt gespeichert werden
+                    key_reveal = f"reveal_{admin_tag}_{sel_cat}_{label}"
+                    key_winner_reveal = f"winner_reveal_{admin_tag}_{sel_cat}_{label}"
+                    key_override = f"override_{admin_tag}_{sel_cat}_{label}"
+                    
+                    # Die Widget-Keys (key=...) erhalten ebenfalls das admin_tag, was Streamlit zum sauberen Reset zwing
+                    store.data[key_reveal] = st.checkbox("Nominationen anzeigen", value=store.data.get(key_reveal, False), key=f"cb1_{key_reveal}")
+                    store.data[key_winner_reveal] = st.checkbox("BIS Gewinner anzeigen", value=store.data.get(key_winner_reveal, False), key=f"cb2_{key_winner_reveal}")
+                    
+                    pool = df_full[(df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X') & (df_full['KATEGORIE'] == sel_cat) & (df_full['KLASSE_INTERNAL'].isin(klassen)) & (df_full['GESCHLECHT'].astype(str).str.upper() == geschl)]
+                    options = ["Automatisch (Stimmen)"] + sorted(pool['KAT_STR'].unique().tolist())
+                    
+                    store.data[key_override] = st.selectbox(f"Gewinner festlegen:", options, index=options.index(store.data.get(key_override, "Automatisch (Stimmen)")) if store.data.get(key_override) in options else 0, key=f"sb_{key_override}")
+                    
+                    final_nr = None
+                    if store.data[key_override] != "Automatisch (Stimmen)": 
+                        final_nr = store.data[key_override]
+                    elif "votes" in store.data:
+                        vts = [v for k, v in store.data["votes"].items() if k.startswith(v_prefix) and v != "Keine Wahl"]
+                        if vts: 
+                            final_nr = pd.Series(vts).value_counts().index[0]
+                            
+                    if final_nr and st.button(f"🏆 OVERLAY ZEIGEN (#{final_nr})", key=f"btn_ov_{admin_tag}_{sel_cat}_{label}"):
+                        w_match = df_full[df_full['KAT_STR'] == str(final_nr)]
+                        if not w_match.empty:
+                            store.active_overlay = w_match.iloc[0].to_dict()
+                            store.overlay_start_time = time.time()
+                            if "local_overlay_end" in st.session_state:
+                                st.session_state.local_overlay_end = 0
+                        st.success(f"Overlay für #{final_nr} wurde gestartet!")
+        
+                with c_votes:
+                    st.markdown("**Stimmen-Details**")
+                    if "votes" in store.data:
+                        current_votes = {k.replace(v_prefix, ""): v for k, v in store.data["votes"].items() if k.startswith(v_prefix) and v != "Keine Wahl"}
+                        if current_votes:
+                            vote_df = pd.DataFrame([{"Richter": r, "Wahl (Kat Nr.)": f"#{v}"} for r, v in current_votes.items()])
+                            st.table(vote_df)
+                            summary = pd.Series(current_votes.values()).value_counts()
+                            st.write("**Zwischenstand:**")
+                            for nr, count in summary.items(): 
+                                st.write(f"Katze #{nr}: {count} Stimme(n)")
+                                
+    if st.button("⬅️ Zurück zum Hauptmenü", key="back_from_bisadmin"):
+        set_view("Home")
+
+# BIS PUBLIC VIEW
+# BIS PUBLIC VIEW NEW
+# BIS PUBLIC VIEW NEW
