@@ -39,9 +39,9 @@ ACCESS_MAP = {
 # (RICHTER TAG n und SELECTION n gehoeren zur selben Nummer n)
 # ---------------------------------------------------------------------------
 ROUNDS = {
-    1: {"name": "Gelb", "emoji": "🟡", "color": "#f2b600", "on_color": "#1b1b1b", "tint": "#fffae7"},
-    2: {"name": "Grün", "emoji": "🟢", "color": "#2e9e4f", "on_color": "#ffffff", "tint": "#f2ffed"},
-    3: {"name": "Rot",  "emoji": "🔴", "color": "#d93a3a", "on_color": "#ffffff", "tint": "#ffebeb"},
+    1: {"name": "Gelb", "emoji": "🟡", "color": "#f2b600", "on_color": "#1b1b1b", "tint": "#fffdf2"},
+    2: {"name": "Grün", "emoji": "🟢", "color": "#2e9e4f", "on_color": "#ffffff", "tint": "#f7fff4"},
+    3: {"name": "Rot",  "emoji": "🔴", "color": "#d93a3a", "on_color": "#ffffff", "tint": "#fff5f5"},
 }
 
 # Showtypen: welche Runden gibt es? (Vorlagen, im Rundenmanager umschaltbar)
