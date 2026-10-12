@@ -118,7 +118,11 @@ def render():
                 
                 # Lokale Referenz für einfachere Handhabung im UI-Code
                 flags = store.data[k]["flags"]
-                card_class = "steward-card-wrapper gerichtet" if flags.get("Gerichtet") else "steward-card-wrapper"
+                belegt = busy_elsewhere(store, nr, mein_richter)
+                ist_admin = st.session_state.get("user_role") == "Admin"
+                abwesend = is_absent(store, nr, runde)
+                gedimmt = bool(flags.get("Gerichtet")) or abwesend or bool(belegt)
+                card_class = "steward-card-wrapper gerichtet" if gedimmt else "steward-card-wrapper"
                 
                 # START DES GRAUEN RECHTECKS
                 st.markdown(f"""
@@ -138,18 +142,12 @@ def render():
                 """, unsafe_allow_html=True)
                 
                 # --- Sperre: Katze ist bei einem anderen Richter belegt ---
-                belegt = busy_elsewhere(store, nr, mein_richter)
-                ist_admin = st.session_state.get("user_role") == "Admin"
-                abwesend = is_absent(store, nr, runde)
                 gesperrt = (bool(belegt) and not ist_admin) or abwesend
                 if abwesend:
-                    st.error(f"🚫 Katze {nr} ist in dieser Runde ABWESEND. Freigabe nur durch die Ausstellungsleitung im PDF-Import.")
+                    st.error(f"🚫 Katze {nr} ist ABWESEND.")
                 if belegt:
                     wo = ", ".join(f"{o} ({t})" for o, t in belegt)
-                    if ist_admin:
-                        st.warning(f"🔒 Katze {nr} ist bei {wo}. Admin darf trotzdem schalten.")
-                    else:
-                        st.error(f"🔒 Katze {nr} ist gerade bei {wo}. Bitte warten, bis sie dort fertig ist.")
+                    st.error(f"🔒 Katze {nr} ist bei {wo} und kann nicht aufgerufen werden.")
 
                 c1, c2, c3, c4, c5 = st.columns(5, vertical_alignment="center")
                 
