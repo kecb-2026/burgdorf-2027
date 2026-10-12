@@ -152,13 +152,17 @@ def render():
     )
 
     # --- Ergebnis + ein Knopf ---
-    st.markdown("""<style>
-    .st-key-mod_show_winner button, .st-key-mod_show_winner_early button { width: 100% !important; min-height: 170px !important; height: 170px !important;
-        border-radius: 18px !important; padding: 10px 14px !important; }
-    .st-key-mod_show_winner button p, .st-key-mod_show_winner_early button p { font-size: 44px !important; font-weight: 900 !important; line-height: 1.1 !important; white-space: normal !important; }
-    .st-key-mod_show_winner button:not(:disabled), .st-key-mod_show_winner_early button:not(:disabled) { background:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; }
-    .st-key-mod_show_winner button:disabled, .st-key-mod_show_winner_early button:disabled { opacity:.45 !important; }
-    </style>""", unsafe_allow_html=True)
+    _bsel = lambda suf="": ",".join(
+        'html body div[data-testid="stHorizontalBlock"] > div:nth-child(n) div[data-testid="stButton"].st-key-%s > button%s' % (k, suf)
+        for k in ("mod_show_winner", "mod_show_winner_early"))
+    st.markdown("<style>" +
+        _bsel() + "{width:100% !important; min-width:0 !important; height:150px !important; min-height:150px !important; padding:8px 12px !important; "
+        "border-radius:18px !important; background-color:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; "
+        "display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; animation:none !important;}" +
+        _bsel(" p") + "{font-size:36px !important; font-weight:900 !important; line-height:1.1 !important; white-space:normal !important; "
+        "text-align:center !important; margin:0 !important;}" +
+        _bsel(":disabled") + "{opacity:.45 !important;}" +
+        "</style>", unsafe_allow_html=True)
     c_res, c_btn = st.columns([1.3, 1])
     with c_res:
         if winner:
