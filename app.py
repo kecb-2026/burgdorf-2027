@@ -42,6 +42,7 @@ VIEWS = {
     "Moderator": "views.moderator",
     "Excel_Upload": "views.excel_upload",
     "Excel_Edit": "views.excel_edit",
+    "Alters_Check": "views.alters_check",
     "Import_PDF": "views.import_pdf",
 }
 
