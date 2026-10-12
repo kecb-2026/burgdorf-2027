@@ -152,7 +152,14 @@ def render():
     )
 
     # --- Ergebnis + ein Knopf ---
-    st.markdown("<style>div.stButton > button { height: 140px; font-size: 34px; font-weight: 900; line-height: 1.15; white-space: normal; }</style>", unsafe_allow_html=True)
+    st.markdown("""<style>
+    div[data-testid="stButton"] > button, div.stButton > button { width: 100% !important; min-height: 170px !important; height: 170px !important;
+        border-radius: 18px !important; padding: 10px 14px !important; }
+    div[data-testid="stButton"] > button p, div[data-testid="stButton"] > button div, div[data-testid="stButton"] > button span,
+    div.stButton > button p { font-size: 44px !important; font-weight: 900 !important; line-height: 1.1 !important; white-space: normal !important; }
+    div[data-testid="stButton"] > button:not(:disabled) { background:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; }
+    div[data-testid="stButton"] > button:disabled { opacity:.45 !important; }
+    </style>""", unsafe_allow_html=True)
     c_res, c_btn = st.columns([1.3, 1])
     with c_res:
         if winner:
@@ -191,6 +198,7 @@ def render():
             disabled=(winner is None),
             on_click=_mod_show_winner,
             args=(tag, cat, label, winner),
+            use_container_width=True,
         )
         if winner_revealed:
             st.caption("✅ Gewinner ist für Richter und BIS-Screen freigegeben.")
@@ -211,6 +219,7 @@ def render():
                 disabled=not _ok,
                 on_click=_mod_show_early,
                 args=(tag, cat, label, _early),
+                use_container_width=True,
             )
 
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
