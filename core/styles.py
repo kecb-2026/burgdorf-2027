@@ -258,7 +258,7 @@ def inject_global_css():
     .cat-number { font-size: 28px !important; font-weight: 900 !important; color: #1a4a9e; line-height: 1.0; }
     .cat-details { font-size: 14px !important; color: #333; font-weight: bold; margin-top: 2px; line-height: 1.1; }
 
-	.cat-card.dash-big { height: auto; min-height: 125px; max-height: none; overflow: visible; box-sizing: border-box; padding: 6px 4px; }
+	.cat-card.dash-big { height: auto; min-height: 100px; max-height: none; overflow: visible; box-sizing: border-box; padding: 4px 4px; }
     .cat-card.dash-big .cat-number { font-size: 38px !important; }
     .cat-card.dash-big .cat-details { font-size: 17px !important; white-space: normal; overflow: visible; }
     .cat-card.dash-big .tag { font-weight: 400; padding: 2px 7px; font-size: 15px; }
