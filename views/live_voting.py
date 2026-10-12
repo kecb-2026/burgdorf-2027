@@ -32,8 +32,8 @@ def render():
         all_judges = sorted(real_judges(df_full[r_col]))
         _tbd = store.data.get(f"tiebreak_{tag}_{store.data.get('test_live_cat')}_{store.data.get('test_live_label')}")
         _tbd = _tbd if isinstance(_tbd, dict) else None
-        if _tbd and _tbd.get("judge") and _tbd["judge"] not in all_judges:
-            all_judges = sorted(all_judges + [_tbd["judge"]])
+        if _tbd:
+            all_judges = sorted(set(all_judges) | set(_tbd.get("judges", [])))
         
         # 1. LIVE-WERTE AUS DEM TEST-ADMIN AUSLESEN
         active_cat = store.data.get("test_live_cat")
@@ -151,7 +151,7 @@ def render():
                     with st.expander(f"Wahl für/Choice for {label}", expanded=True):
                         pool = df_full[(df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X') & (df_full['KATEGORIE'] == active_cat) & class_mask(df_full, klassen, geschl)]
                         
-                        _is_tb = bool(_tbd) and active_j == _tbd.get("judge")
+                        _is_tb = bool(_tbd) and active_j in _tbd.get("judges", [])
                         if _is_tb:
                             pool = pool[pool['KAT_STR'].astype(str).isin([str(c) for c in _tbd.get("cats", [])])]
                             st.info("🗳️ **Stichentscheid:** Bitte wählen Sie unter den gleichauf liegenden Katzen. / Tie-break: please choose among the tied cats.")
