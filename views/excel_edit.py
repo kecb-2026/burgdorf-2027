@@ -15,11 +15,11 @@ def render():
     
     if df_loaded is not None:
         EXACT_ORIGINAL_COLS = [
-            'SELECTION 1', 'SELECTION 2', 'KATALOG-NR', 'CHIP-NUMMER', 'STAMMBUCH-NUMMER',
+            'SELECTION 1', 'SELECTION 2', 'SELECTION 3', 'KATALOG-NR', 'CHIP-NUMMER', 'STAMMBUCH-NUMMER',
             'NAME', 'GEBURTSDATUM', 'GESCHLECHT', 'KATEGORIE', 'RASSE', 'FARBE',
-            'FARBGRUPPE', 'KASTRIERT', 'AUSSTELLUNGSKLASSE', 'TAG 1', 'TAG 2',
+            'FARBGRUPPE', 'KASTRIERT', 'AUSSTELLUNGSKLASSE', 'TAG 1', 'TAG 2', 'TAG 3',
             'BESITZER NACHNAME', 'BESITZER VORNAME', 'BESITZER ADRESSE 1', 'BESITZER LAND',
-            'BESITZER PLZ', 'BESITZER ORT', 'RICHTER TAG 1', 'RICHTER TAG 2'
+            'BESITZER PLZ', 'BESITZER ORT', 'RICHTER TAG 1', 'RICHTER TAG 2', 'RICHTER TAG 3'
         ]
 
         valid_cols = [col for col in EXACT_ORIGINAL_COLS if col in df_loaded.columns]

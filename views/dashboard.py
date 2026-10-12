@@ -2,7 +2,8 @@
 """Ansicht: Dashboard"""
 from streamlit_autorefresh import st_autorefresh
 import streamlit as st
-from core.data import get_full_label, load_labels, real_judges
+from core.data import get_full_label, load_labels
+from core.rounds import all_judges, default_round, judge_cats, judge_round, round_color, round_label, round_on_color, round_tint, tag_of
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -11,26 +12,27 @@ def render():
     store = get_store()
     display_header_with_logo("📢 Live-Aufruf & Status")
     
-    # Holt sich den vom Admin festgesetzten Tag (völlig immun gegen das st_autorefresh)
-    admin_day = store.data.get("admin_selected_day", "Tag 1")
-    tag = "TAG 2" if "2" in str(admin_day) else "TAG 1"
-    
-    # Passive Info-Anzeige in der Seitenleiste
-    st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
+    # Jeder Richter hat seine eigene Runde (Rundenmanager). Es koennen mehrere Runden gleichzeitig laufen.
+    st.sidebar.info(f"🎛️ Standard-Runde: {round_label(default_round(store))}")
     
     df_full = load_labels()
     if df_full is not None:
-        r_col = f"RICHTER {tag}"
-        
-        # Filtert das Excel NUR auf Zeilen, die am aktuellen Tag ein 'X' haben
-        df_tag = df_full[df_full[tag].astype(str).str.upper() == 'X'].copy()
-        
-        judges = sorted(real_judges(df_tag[r_col]))
+        # Nur Richter zeigen, die in ihrer aktuellen Runde Katzen haben
+        judges = [j for j in all_judges(df_full) if not judge_cats(df_full, j, judge_round(store, j)).empty]
         if judges:
             cols = st.columns(len(judges))
             for i, j in enumerate(judges):
+                rn = judge_round(store, j)
+                tag = tag_of(rn)
+                r_col = f"RICHTER {tag}"
+                df_tag = judge_cats(df_full, j, rn)
+                r_color, r_tint, r_on, r_text = round_color(rn), round_tint(rn), round_on_color(rn), round_label(rn, with_emoji=False)
                 with cols[i]:
-                    st.markdown(f"<div class='judge-header-box'>{j}</div>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='judge-header-box' style='background-color:{r_color}; color:{r_on}; border-color:{r_color};'>"
+                        f"<div>{j}<div style='font-size:0.45em; font-weight:600; text-transform:none;'>{r_text}</div></div></div>",
+                        unsafe_allow_html=True,
+                    )
                     
                     judge_entries = []
                     for k, v in store.data.items():
@@ -38,7 +40,7 @@ def render():
                             kat_nr = k.split("|")[0]
                             
                             # PRÜFUNG: Existiert die Katze am aktuellen Tag bei diesem Richter?
-                            m = df_tag[(df_tag['KAT_STR'] == kat_nr) & (df_tag[r_col] == j)]
+                            m = df_tag[df_tag['KAT_STR'] == kat_nr]
                             
                             if not m.empty:  # Nur verarbeiten, wenn sie zum aktuellen Tag gehört!
                                 flags = v.get("flags", {}) if isinstance(v, dict) else {}
@@ -85,7 +87,7 @@ def render():
                         
                         if tags_html: 
                             st.markdown(f"""
-                                <div class='cat-card dash-big'>
+                                <div class='cat-card dash-big' style='background-color:{r_tint}; border-color:{r_color};'>
                                     <div class='cat-number'>{kat_nr}</div>
                                     <div class='cat-details'>{get_full_label(m_row)}</div>
                                     <div class='tag-container'>{tags_html}</div>

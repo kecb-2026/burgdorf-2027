@@ -30,6 +30,7 @@ VIEWS = {
     "QR_Codes_Gen": "views.qr_codes_gen",
     "Nominated_Cats": "views.nominated_cats",
     "Admin_Panel": "views.admin_panel",
+    "Rundenmanager": "views.rundenmanager",
     "Judge_List": "views.judge_list",
     "Judge List": "views.judge_list",
     "Nomination_Labels": "views.nomination_labels",
@@ -55,6 +56,7 @@ if "auth" in q_params and q_params["auth"] == "true":
         if v_param == "steward": st.session_state.view = "Steward_Panel"
        # elif v_param == "richter": st.session_state.view = "Judge_Voting"
         elif v_param == "admin": st.session_state.view = "Home"
+        elif v_param == "rundenmanager": st.session_state.view = "Rundenmanager"
         elif v_param == "excel-upload": st.session_state.view = "Excel_Upload"
         elif v_param == "excel-edit": st.session_state.view = "Excel_Edit"
 

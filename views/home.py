@@ -2,6 +2,7 @@
 """Ansicht: Home"""
 import streamlit as st
 from core.config import SHOW_YEAR
+from core.rounds import default_round, round_label
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -94,18 +95,9 @@ def render():
     )
 
 
-    # Der Tag liegt jetzt im gemeinsamen Speicher (gilt für alle Geräte)
-    def save_admin_day():
-        store.set_data("admin_selected_day", None, st.session_state.admin_radio_widget)
-
-    st.subheader("⚙️ Globaler Event-Status")
-    st.radio(
-        "Aktiven Tag für die gesamte Ausstellung festlegen:", 
-        ["Tag 1", "Tag 2"], 
-        key="admin_radio_widget",
-        index=0 if store.data.get("admin_selected_day", "Tag 1") == "Tag 1" else 1,
-        on_change=save_admin_day
-    )
-
-# BIS ADMIN CONTROL
-# BIS ADMIN CONTROL
+    st.subheader("⚙️ Runden")
+    st.info(f"Standard-Runde: {round_label(default_round(store))}. "
+            "Runden und Richter werden im Rundenmanager gesteuert.")
+    if st.button("🎛️ RUNDENMANAGER", key="home_to_rundenmanager"):
+        st.query_params.update({"view": "rundenmanager", "auth": "true", "role": "Admin"})
+        set_view("Rundenmanager")

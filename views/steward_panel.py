@@ -4,7 +4,8 @@ import pandas as pd
 import streamlit as st
 import time
 from core.config import FIFe_KLASSEN_NAMEN
-from core.data import get_full_label, load_labels, real_judges
+from core.data import get_full_label, load_labels
+from core.rounds import all_judges, busy_elsewhere, judge_cats, judge_round, round_color, round_label, round_tint, tag_of
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -18,33 +19,8 @@ def render():
         # 1. Prüfen, ob ein Richter via QR-Code übergeben wurde
         url_judge_name = st.session_state.get("url_judge", "--")
         
-        # 2. Automatisch ermitteln, welcher Tag gilt (Standard ist der sichere ADMIN-TAG)
-        admin_day = store.data.get("admin_selected_day", "Tag 1")
-        calculated_tag = "TAG 2" if "2" in str(admin_day) else "TAG 1"
-        
-        # Falls in der URL explizit ein Tag steht (?day=2), überschreibt dieser den Admin-Tag
-        url_day = st.query_params.get("day", None)
-        if url_day == "1":
-            calculated_tag = "TAG 1"
-        elif url_day == "2":
-            calculated_tag = "TAG 2"
-        
-        # 3. Wenn ein Richtername übergeben wurde, deine originale Logik prüfen:
-        if url_judge_name != "--":
-            j_t1 = real_judges(df_full['RICHTER TAG 1']) if 'RICHTER TAG 1' in df_full.columns else []
-            j_t2 = real_judges(df_full['RICHTER TAG 2']) if 'RICHTER TAG 2' in df_full.columns else []
-            
-            if url_judge_name in j_t2 and url_judge_name not in j_t1:
-                calculated_tag = "TAG 2"
-        
-        # Finale Zuweisung an die Variable tag für die Spaltennamen
-        tag = calculated_tag.upper()
-        
-        # Nur noch eine passive Info-Anzeige in der Sidebar statt einem störenden Radio-Button
-        st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
-        
-        r_col = f"RICHTER {tag}"
-        all_j = sorted(real_judges(df_full[df_full[tag].astype(str).str.upper() == 'X'][r_col]))
+        # 2. Alle Richter (aus allen Runden). Die Runde ergibt sich spaeter aus dem Rundenmanager.
+        all_j = all_judges(df_full)
         
         # Berechnen des Default-Index für die Richter-Selectbox
         default_idx = 0
@@ -62,7 +38,18 @@ def render():
             )
 
         if mein_richter != "--":
-            df_richter_alle = df_full[(df_full[tag].astype(str).str.upper() == 'X') & (df_full[r_col] == mein_richter)]
+            # Runde dieses Richters (vom Rundenmanager gesetzt)
+            runde = judge_round(store, mein_richter)
+            tag = tag_of(runde)
+            r_col = f"RICHTER {tag}"
+            r_color, r_tint, r_text = round_color(runde), round_tint(runde), round_label(runde)
+            st.sidebar.info(f"🎨 {mein_richter}: {r_text}")
+            st.markdown(
+                f"<div style='background:{r_tint}; border-left:12px solid {r_color}; padding:10px 16px; "
+                f"border-radius:8px; font-size:22px; font-weight:bold;'>{r_text}</div>",
+                unsafe_allow_html=True,
+            )
+            df_richter_alle = judge_cats(df_full, mein_richter, runde)
             verfuegbare_kategorien = sorted(list(set([str(cat).replace('.0', '') for cat in df_richter_alle['KATEGORIE'].unique() if pd.notna(cat)])))
             meine_kategorie = st.selectbox("Kategorie wählen:", verfuegbare_kategorien)
             
@@ -129,10 +116,11 @@ def render():
                 
                 # START DES GRAUEN RECHTECKS
                 st.markdown(f"""
-                <div class="{card_class}">
+                <div class="{card_class}" style="background-color:{r_tint} !important; border-left:12px solid {r_color} !important;">
                     <div class="card-header-row">
                         <span class="card-cat-number">Nr. {nr}</span>
                         <span class="card-meta-main">{get_full_label(row)}</span>
+                        <span class="card-meta-sub" style="font-weight:bold; color:{r_color};">{r_text}</span>
                     </div>
                     <div class="grid-container">
                         <span class="card-meta-sub"><span class="meta-label">Klasse:</span> {klasse_anzeige}</span>
@@ -143,13 +131,24 @@ def render():
                     <div style="border-top: 1px solid #e2e2e2; padding-top: 10px; margin-top: 12px; margin-bottom: 8px;"></div>
                 """, unsafe_allow_html=True)
                 
+                # --- Sperre: Katze ist bei einem anderen Richter belegt ---
+                belegt = busy_elsewhere(store, nr, mein_richter)
+                ist_admin = st.session_state.get("user_role") == "Admin"
+                gesperrt = bool(belegt) and not ist_admin
+                if belegt:
+                    wo = ", ".join(f"{o} ({t})" for o, t in belegt)
+                    if ist_admin:
+                        st.warning(f"🔒 Katze {nr} ist bei {wo}. Admin darf trotzdem schalten.")
+                    else:
+                        st.error(f"🔒 Katze {nr} ist gerade bei {wo}. Bitte warten, bis sie dort fertig ist.")
+
                 c1, c2, c3, c4, c5 = st.columns(5, vertical_alignment="center")
                 
                 # BUTTON 1: AUFRUFEN (Blau)
                 is_rich = flags.get("Zum Richten")
                 with c1:
                     if is_rich and not flags.get("Wird gerichtet"): st.markdown('<div class="st-blink-btn">', unsafe_allow_html=True)
-                    if st.button("⚠️ [ AKTIV ] AUFGERUFEN ⚠️" if (is_rich and not flags.get("Wird gerichtet")) else "AUFRUFEN", key=f"btn_rich_{k}"):
+                    if st.button("⚠️ [ AKTIV ] AUFGERUFEN ⚠️" if (is_rich and not flags.get("Wird gerichtet")) else "AUFRUFEN", key=f"btn_rich_{k}", disabled=gesperrt and not flags.get('Zum Richten')):
                         store.data[k]["flags"]["Zum Richten"] = not is_rich
                         if store.data[k]["flags"]["Zum Richten"]:
                             store.data[k]["flags"]["Gerichtet"] = False
@@ -165,7 +164,7 @@ def render():
                 is_busy = flags.get("Wird gerichtet")
                 with c2:
                     if is_busy: st.markdown('<div class="st-blink-btn">', unsafe_allow_html=True)
-                    if st.button("⏳ TISCH / RICHTEN ⏳" if is_busy else "WIRD GERICHTET", key=f"btn_busy_{k}"):
+                    if st.button("⏳ TISCH / RICHTEN ⏳" if is_busy else "WIRD GERICHTET", key=f"btn_busy_{k}", disabled=gesperrt and not flags.get('Wird gerichtet')):
                         store.data[k]["flags"]["Wird gerichtet"] = not is_busy
                         if store.data[k]["flags"]["Wird gerichtet"]:
                             store.data[k]["flags"]["Zum Richten"] = True 
@@ -180,7 +179,7 @@ def render():
                 is_biv = flags.get("BIV")
                 with c3:
                     if is_biv: st.markdown('<div class="st-blink-btn">', unsafe_allow_html=True)
-                    if st.button("⚠️ [ AKTIV ] BIV ⚠️" if is_biv else "BIV", key=f"btn_biv_{k}"):
+                    if st.button("⚠️ [ AKTIV ] BIV ⚠️" if is_biv else "BIV", key=f"btn_biv_{k}", disabled=gesperrt and not flags.get('BIV')):
                         store.data[k]["flags"]["BIV"] = not is_biv
                         store.data[k]["timestamp"] = time.time()
                         
@@ -192,7 +191,7 @@ def render():
                 is_nom = flags.get("NOM")
                 with c4:
                     if is_nom: st.markdown('<div class="st-blink-btn">', unsafe_allow_html=True)
-                    if st.button("⚠️ [ AKTIV ] NOM ⚠️" if is_nom else "NOM", key=f"btn_nom_{k}"):
+                    if st.button("⚠️ [ AKTIV ] NOM ⚠️" if is_nom else "NOM", key=f"btn_nom_{k}", disabled=gesperrt and not flags.get('NOM')):
                         store.data[k]["flags"]["NOM"] = not is_nom
                         if store.data[k]["flags"]["NOM"]:
                             store.data[k]["timestamp"] = time.time()

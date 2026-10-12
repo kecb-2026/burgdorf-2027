@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 import time
 from core.data import load_labels
+from core.rounds import active_rounds, default_round, round_label, tag_of
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -40,7 +41,11 @@ def render():
     
     if df_full is not None:
         # --- HIER DIE NEUE RADIO-BOX FÜR DIE TAGE EINFÜGEN ---
-        admin_tag = st.radio("Ausstellungstag verwalten:", ["Tag 1", "Tag 2"], horizontal=True, key="admin_day_selector").upper()
+        _runden = active_rounds(store)
+        _std = default_round(store)
+        admin_round = st.radio("Runde verwalten:", _runden, index=_runden.index(_std) if _std in _runden else 0,
+                               format_func=round_label, horizontal=True, key="admin_round_selector")
+        admin_tag = tag_of(admin_round)
         
         # Spaltenname dynamisch bestimmen (SELECTION 1 oder SELECTION 2)
         sel_col = f"SELECTION {admin_tag.replace('TAG ', '')}"
@@ -58,7 +63,7 @@ def render():
         
         for label, klassen, geschl in bis_defs:
             # Der Expander-Key wird tagesabhängig, damit der Auf-/Zuklapp-Status nicht vermischt wird
-            with st.expander(f"KLASSE: {label} ({admin_tag})", expanded=True):
+            with st.expander(f"KLASSE: {label} ({round_label(admin_round)})", expanded=True):
                 c_ctrl, c_votes = st.columns([1, 1.2])
                 
                 # Der v_prefix enthält jetzt den Tag, damit die Stimmen von Tag 1 und Tag 2 getrennt gesucht werden

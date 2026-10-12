@@ -3,7 +3,7 @@
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
-from core.data import get_full_label, load_labels, real_judges
+from core.data import get_full_label, load_labels, real_judges, with_selection
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -19,9 +19,14 @@ def render():
         global_admin_day = store.data.get("admin_selected_day", "Tag 1")
         st.session_state["judge_day_selector"] = global_admin_day
         st.sidebar.info(f"📅 Aktiver Ausstellungstag: {global_admin_day}")
-        tag = global_admin_day.upper()
+        # Massgebend ist die Runde der freigegebenen Klasse; sonst die Standard-Runde
+        tag = str(store.data.get("test_live_tag") or global_admin_day).upper()
+        df_full = with_selection(df_full, tag)
         
         r_col = f"RICHTER {tag}"
+        if r_col not in df_full.columns:
+            st.error(f"Im Excel fehlt die Spalte '{r_col}'.")
+            st.stop()
         all_judges = sorted(real_judges(df_full[r_col]))
         
         # 1. LIVE-WERTE AUS DEM TEST-ADMIN AUSLESEN

@@ -44,7 +44,7 @@ def render():
     if df_full is not None:
         df_full = df_full.drop_duplicates() # Füge dies hinzu, um Geisterzeilen zu vermeiden
         # --- ANFANG DER ÄNDERUNG: AUTOMATISCHE TAGES-SYNCHRONISATION FÜR DAS PUBLIKUM ---
-        global_admin_day = store.data.get("admin_selected_day", "Tag 1")
+        global_admin_day = store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")
         current_tag = global_admin_day.upper()
         
         st.session_state['bis_stable_tag'] = current_tag
@@ -54,7 +54,7 @@ def render():
         available_cats = sorted(df_full['KATEGORIE'].unique())
         current_cat = st.session_state.get('bis_stable_cat', available_cats[0])
 
-        tag_index = ["TAG 1", "TAG 2"].index(current_tag) if current_tag in ["TAG 1", "TAG 2"] else 0
+        tag_index = ["TAG 1", "TAG 2", "TAG 3"].index(current_tag) if current_tag in ["TAG 1", "TAG 2", "TAG 3"] else 0
         cat_index = available_cats.index(current_cat) if current_cat in available_cats else 0
 
         st.sidebar.info(f"📅 Aktiver Ausstellungstag: {current_tag}")

@@ -4,7 +4,7 @@ from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
 import time
-from core.data import get_full_label, load_labels
+from core.data import get_full_label, load_labels, with_selection
 from core.store import get_store
 from core.ui import display_header_with_logo
 
@@ -77,7 +77,8 @@ def render():
         st.error("Die Excel-Daten konnten nicht geladen werden.")
         st.stop()
 
-    tag = str(store.data.get("admin_selected_day", "Tag 1")).upper()
+    tag = str(store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")).upper()
+    df_full = with_selection(df_full, tag)
     st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
 
     cat = store.data.get("test_live_cat")
@@ -98,6 +99,9 @@ def render():
     klassen, geschl = _defs[label]
 
     r_col = f"RICHTER {tag}"
+    if r_col not in df_full.columns:
+        st.error(f"Im Excel fehlt die Spalte '{r_col}'.")
+        st.stop()
 
     pool = df_full[
         (df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X')
