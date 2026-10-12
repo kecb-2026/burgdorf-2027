@@ -2,6 +2,13 @@
 """Ansicht: Live_Handy – schlanke Aufruf-Ansicht fuer Aussteller auf dem Handy (ohne Login).
 Oben ein Auswahlfeld fuer den Richter, darunter dessen aufgerufene Katzen untereinander."""
 import html as _h
+import time
+from datetime import datetime
+try:
+    from zoneinfo import ZoneInfo
+    _TZ = ZoneInfo('Europe/Zurich')
+except Exception:
+    _TZ = None
 from streamlit_autorefresh import st_autorefresh
 import streamlit as st
 from core.data import get_full_label, load_labels
@@ -76,6 +83,23 @@ def _by_judge(store, df_full):
     st.caption("Die Anzeige aktualisiert sich automatisch.")
 
 
+def _called_info(store, nr, judge):
+    """HTML-Zeile 'Aufgerufen um HH:MM (vor N Min.)' oder ''. Ab 10 Min. rot/Warnung."""
+    v = store.data.get(f"{nr}|{judge}")
+    if not isinstance(v, dict):
+        return ""
+    ts = v.get("called_at") or v.get("timestamp") or 0
+    if not ts:
+        return ""
+    mins = max(0, int((time.time() - float(ts)) // 60))
+    clock = datetime.fromtimestamp(float(ts), _TZ).strftime("%H:%M")
+    late = mins >= 10
+    warn = " ⚠️ Bitte sofort zum Richtertisch!" if late else ""
+    col = "#b71c1c" if late else "#333"
+    return (f"<br><span style='color:{col}; font-weight:{'900' if late else 'bold'};'>"
+            f"🕒 Aufgerufen um {clock} Uhr (vor {mins} Min.){warn}</span>")
+
+
 def _status_of(store, nr, judge):
     v = store.data.get(f"{nr}|{judge}")
     flags = v.get("flags", {}) if isinstance(v, dict) and isinstance(v.get("flags"), dict) else {}
@@ -126,7 +150,7 @@ def _my_cats(store, df_full):
             lines.append(
                 f"<div style='margin-top:6px; padding:6px 8px; border-left:8px solid {round_color(n)}; background:{round_tint(n)}; "
                 f"border-radius:6px; text-align:left;'><b>{round_label(n)}</b> · {_h.escape(judge)}<br>"
-                f"<span style='color:{col}; font-weight:bold;'>{text}</span></div>")
+                f"<span style='color:{col}; font-weight:bold;'>{text}</span>{_called_info(store, nr, judge) if kind in ('called','table') else ''}</div>")
         cards.append((nr, row, "".join(lines)))
 
     if alerts:

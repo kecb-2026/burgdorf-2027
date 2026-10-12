@@ -3,7 +3,8 @@
 from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
-from core.data import get_full_label, load_labels, real_judges, with_selection
+from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
+from core.data import class_mask, get_full_label, load_labels, real_judges, with_selection
 from core.store import get_store
 from core.ui import display_header_with_logo, round_banner
 
@@ -22,7 +23,7 @@ def render():
         # Massgebend ist die Runde der freigegebenen Klasse; sonst die Standard-Runde
         tag = str(store.data.get("test_live_tag") or global_admin_day).upper()
         df_full = with_selection(df_full, tag)
-        round_banner(tag)
+        round_banner(tag, cat=store.data.get("test_live_cat"))
         
         r_col = f"RICHTER {tag}"
         if r_col not in df_full.columns:
@@ -138,11 +139,13 @@ def render():
                 ("Kitten 4-8 Male", [12], "M"), ("Kitten 4-8 Female", [12], "W")
             ]
             
+            if str(active_cat).replace('.0', '') in NO_CLASS_CATEGORIES:
+                bis_defs = [(NO_CLASS_LABEL, None, None)]   # Kategorie ohne Klassen
             for label, klassen, geschl in bis_defs:
                 # DIE MAGISCHE WEICHE: NUR WENN ES DIE VOM TEST-ADMIN FREIGEGEBENE KLASSE IST!
                 if label == active_label:
                     with st.expander(f"Wahl für/Choice for {label}", expanded=True):
-                        pool = df_full[(df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X') & (df_full['KATEGORIE'] == active_cat) & (df_full['KLASSE_INTERNAL'].isin(klassen)) & (df_full['GESCHLECHT'].astype(str).str.upper() == geschl)]
+                        pool = df_full[(df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X') & (df_full['KATEGORIE'] == active_cat) & class_mask(df_full, klassen, geschl)]
                         
                         if not pool.empty:
                             # --------------------------------------------------

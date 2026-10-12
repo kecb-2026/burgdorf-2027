@@ -86,3 +86,11 @@ def with_selection(df, tag):
     if col in out.columns:
         out['SELECTION'] = out[col].astype(str).str.strip().str.upper()
     return out
+
+
+def class_mask(df, klassen, geschl):
+    """Filter auf Klasse und Geschlecht. klassen=None (Kategorie ohne Klassen, z. B. Hauskatzen): alle Katzen."""
+    import pandas as _pd
+    if klassen is None:
+        return _pd.Series(True, index=df.index)
+    return df['KLASSE_INTERNAL'].isin(klassen) & (df['GESCHLECHT'].astype(str).str.upper() == geschl)

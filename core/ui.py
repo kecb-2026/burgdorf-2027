@@ -70,16 +70,29 @@ def judge_header_html(name, all_names, bg=None, fg=None, border=None, sub=None, 
             f"<div class='jh-first'>{_h.escape(a)}</div><div class='jh-last'>{_h.escape(b)}</div>{sub_html}</div></div>")
 
 
-def round_banner(tag, big=False):
+def round_banner(tag, big=False, cat=None):
     """Farbiger Balken mit der aktiven Runde (tag z. B. 'TAG 2')."""
     import re as _re
     from core.rounds import round_color, round_label, round_on_color
     m = _re.search(r"(\d+)", str(tag))
     n = int(m.group(1)) if m else 1
-    fs = "clamp(26px, 3vw, 46px)" if big else "clamp(20px, 2.2vw, 32px)"
+    fs = "clamp(15px, 1.5vw, 22px)" if big else "clamp(13px, 1.2vw, 17px)"
     st.markdown(
         f"<div style='background:{round_color(n)}; color:{round_on_color(n)}; border-radius:12px; "
-        f"padding:{'12px' if big else '8px'} 16px; margin:4px 0 14px 0; text-align:center; "
-        f"font-weight:900; text-transform:uppercase; letter-spacing:.06em; font-size:{fs}; line-height:1.15;'>"
-        f"{round_label(n)}</div>",
+        f"padding:{'5px' if big else '3px'} 12px; margin:2px 0 8px 0; text-align:center; "
+        f"font-weight:900; text-transform:uppercase; letter-spacing:.05em; font-size:{fs}; line-height:1.15;'>"
+        f"{round_label(n)}{' – Kategorie ' + str(cat).replace('.0', '') if cat not in (None, '') else ''}</div>",
         unsafe_allow_html=True)
+
+
+def order_strip(order, current=None):
+    """Kleine Leiste: Reihenfolge der Kategorien beim BIS, aktuelle Kategorie hervorgehoben."""
+    cur = str(current).replace(".0", "") if current is not None else None
+    parts = []
+    for i, c in enumerate(order, 1):
+        on = (c == cur)
+        parts.append(
+            f"<span style='display:inline-block; padding:2px 10px; border-radius:8px; margin:0 3px; font-weight:{'900' if on else '600'}; "
+            f"background:{'#1a4a9e' if on else '#e9ecef'}; color:{'white' if on else '#333'};'>{i}. Kat {c}</span>")
+    st.markdown("<div style='text-align:center; font-size:15px; margin:0 0 8px 0; color:#555;'>Reihenfolge: "
+                + " ➜ ".join(parts) + "</div>", unsafe_allow_html=True)

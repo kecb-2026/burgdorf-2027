@@ -3,6 +3,8 @@
 Gespeichert wird nur, was GESPERRT ist. Ueberlebt den Admin-Reset."""
 from core.imports import GATE_KEY, SHOWDAY_KEY
 
+ORDER_KEY = "bis_order"   # {"TAG 1": ["3","2","1","4"]} Reihenfolge der Kategorien beim BIS
+
 DAYS = ("Samstag", "Sonntag")
 
 
@@ -58,4 +60,21 @@ def set_row(store, day, n, cats, open_cats):
     dg[str(int(n))] = sorted(cat_key(c) for c in cats if cat_key(c) not in {cat_key(o) for o in open_cats})
     gate[day] = dg
     store.data[GATE_KEY] = gate
+    store.save_backup()
+
+
+def get_bis_order(store, tag, all_cats):
+    """Reihenfolge der Kategorien fuer die BIS dieser Runde; nicht erwaehnte Kategorien kommen hinten dran."""
+    saved = store.data.get(ORDER_KEY)
+    saved = saved.get(tag, []) if isinstance(saved, dict) else []
+    order = [cat_key(c) for c in saved if cat_key(c) in [cat_key(x) for x in all_cats]]
+    order += [cat_key(c) for c in all_cats if cat_key(c) not in order]
+    return order
+
+
+def set_bis_order(store, tag, order):
+    cur = store.data.get(ORDER_KEY)
+    cur = dict(cur) if isinstance(cur, dict) else {}
+    cur[tag] = [cat_key(c) for c in order]
+    store.data[ORDER_KEY] = cur
     store.save_backup()

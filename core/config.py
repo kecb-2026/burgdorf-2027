@@ -50,3 +50,7 @@ SHOWTYPES = {
     "2028 – 2 Runden (nach Kategorien)": [1, 2],
 }
 DEFAULT_SHOWTYPE = "2027 – 3 Runden (Gelb, Grün, Rot)"
+
+# Kategorien ohne Klassen (z. B. Hauskatzen): BIS Public zeigt nur eine Zeile "Nominierte Katzen"
+NO_CLASS_CATEGORIES = ("5",)
+NO_CLASS_LABEL = "Nominierte Katzen"

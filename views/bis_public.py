@@ -6,7 +6,10 @@ import streamlit as st
 import time
 from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
-from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
+from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
+from core.data import class_mask
+from core.gate import cat_key, get_bis_order
+from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner, order_strip
 
 
 def render():
@@ -44,7 +47,8 @@ def render():
     if df_full is not None:
         df_full = df_full.drop_duplicates() # Füge dies hinzu, um Geisterzeilen zu vermeiden
         # --- ANFANG DER ÄNDERUNG: AUTOMATISCHE TAGES-SYNCHRONISATION FÜR DAS PUBLIKUM ---
-        global_admin_day = store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")
+        # Zentral gesteuert (BIS Admin): Runde und Kategorie dieses Bildschirms
+        global_admin_day = store.data.get("bis_public_tag") or store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")
         current_tag = global_admin_day.upper()
         
         st.session_state['bis_stable_tag'] = current_tag
@@ -59,12 +63,20 @@ def render():
 
         st.sidebar.info(f"📅 Aktiver Ausstellungstag: {current_tag}")
         tag = current_tag
-        round_banner(tag, big=True)
 
-        sel_cat = st.selectbox("Kategorie:", available_cats, index=cat_index)
+        _forced = store.data.get("bis_public_cat")
+        _match = [c for c in available_cats if _forced is not None and str(c).replace(".0", "") == str(_forced).replace(".0", "")]
+        if _match:
+            sel_cat = _match[0]
+            st.markdown(f"<div style='font-size:15px; color:#555; margin-bottom:6px;'>Kategorie <b>{sel_cat}</b></div>", unsafe_allow_html=True)
+        else:
+            sel_cat = st.selectbox("Kategorie:", available_cats, index=cat_index)
         
         st.session_state['bis_stable_tag'] = tag
         st.session_state['bis_stable_cat'] = sel_cat
+        round_banner(tag, big=True, cat=sel_cat)
+        order_strip(get_bis_order(store, tag, available_cats), sel_cat)
+        _noclass = cat_key(sel_cat) in NO_CLASS_CATEGORIES
 
         # --- DYNAMISCHE SPALTEN-WEICHE FÜR DIE 2 TAGE ---
         sel_col = f"SELECTION {tag.replace('TAG ', '')}"
@@ -134,7 +146,8 @@ def render():
             cols[i+1].markdown(judge_header_html(j, judges, extra_class=f"judge-{clean_id}"), unsafe_allow_html=True)
 
         # --- KATZEN-ZEILEN (OHNE BIS-SPALTE) ---
-        for label, klassen, geschl in bis_defs:
+        _rows_defs = [(NO_CLASS_LABEL, None, None)] if _noclass else bis_defs
+        for label, klassen, geschl in _rows_defs:
             r_cols = st.columns([0.8] + [1.2]*len(judges))
             r_cols[0].markdown(f"<div class='class-label-box'>{label}</div>", unsafe_allow_html=True)
             
@@ -163,26 +176,28 @@ def render():
             for i, j in enumerate(judges):
                 with r_cols[i+1]:
                     if show_noms:
-                        m = df_full[(df_full['SELECTION'].astype(str).str.upper() == 'X') & (df_full[r_col] == j) & (df_full['KATEGORIE'] == sel_cat) & (df_full['KLASSE_INTERNAL'].isin(klassen)) & (df_full['GESCHLECHT'].astype(str).str.upper() == geschl)]
+                        m = df_full[(df_full['SELECTION'].astype(str).str.upper() == 'X') & (df_full[r_col] == j) & (df_full['KATEGORIE'] == sel_cat) & class_mask(df_full, klassen, geschl)]
                         if not m.empty:
-                            kat_nr = str(m.iloc[0]['KAT_STR'])
-                            circles_html = ""
-                            if winner_revealed:
-                                prefix = f"v_{tag}_{sel_cat}_{label}_"
-                                all_votes = store.data.get("votes", {})
-                                voters = []
-                                for v_key, v_val in all_votes.items():
-                                    if v_key.startswith(prefix):
-                                        voted_cat = v_val.get("katze") if isinstance(v_val, dict) else v_val
-                                        if str(voted_cat) == str(kat_nr):
-                                            voters.append(v_key.replace(prefix, ""))
-                                if voters:
-                                    circles = "".join([f"<div class='judge-circle' title='{v}'>{get_initials(v)}</div>" for v in voters])
-                                    circles_html = f"<div class='judge-initials-container'>{circles}</div>"
+                            _cards = [m.iloc[0]] if klassen is not None else [r_ for _, r_ in m.iterrows()]   # ohne Klassen: alle Nominierten
+                            for _card in _cards:
+                                kat_nr = str(_card['KAT_STR'])
+                                circles_html = ""
+                                if winner_revealed:
+                                    prefix = f"v_{tag}_{sel_cat}_{label}_"
+                                    all_votes = store.data.get("votes", {})
+                                    voters = []
+                                    for v_key, v_val in all_votes.items():
+                                        if v_key.startswith(prefix):
+                                            voted_cat = v_val.get("katze") if isinstance(v_val, dict) else v_val
+                                            if str(voted_cat) == str(kat_nr):
+                                                voters.append(v_key.replace(prefix, ""))
+                                    if voters:
+                                        circles = "".join([f"<div class='judge-circle' title='{v}'>{get_initials(v)}</div>" for v in voters])
+                                        circles_html = f"<div class='judge-initials-container'>{circles}</div>"
 
-                            card_css_class = "cat-card winner-card" if (winner_revealed and row_winner_nr and kat_nr == row_winner_nr) else "cat-card"
+                                card_css_class = "cat-card winner-card" if (winner_revealed and row_winner_nr and kat_nr == row_winner_nr) else "cat-card"
 
-                            st.markdown(f"<div class='{card_css_class} bis-card'><div class='bis-top'><div class='cat-number'>{kat_nr}</div><div class='cat-details'>{get_full_label(m.iloc[0])}</div></div>{circles_html}</div>", unsafe_allow_html=True)
+                                st.markdown(f"<div class='{card_css_class} bis-card'><div class='bis-top'><div class='cat-number'>{kat_nr}</div><div class='cat-details'>{get_full_label(_card)}</div></div>{circles_html}</div>", unsafe_allow_html=True)
                         else: st.markdown("<div class='placeholder-box'>–</div>", unsafe_allow_html=True)
                     else: st.markdown("<div class='placeholder-box'>🔒</div>", unsafe_allow_html=True)
 

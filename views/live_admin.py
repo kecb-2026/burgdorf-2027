@@ -4,10 +4,11 @@ from streamlit_autorefresh import st_autorefresh
 import pandas as pd
 import streamlit as st
 import time
-from core.data import load_labels
+from core.data import class_mask, load_labels
 from core.rounds import active_rounds, default_round, round_label, tag_of
 from core.bis import cat_status, set_manual_ready
-from core.gate import get_show_day, is_open as is_cat_open
+from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
+from core.gate import cat_key, get_bis_order, get_show_day, is_open as is_cat_open, set_bis_order
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -45,8 +46,19 @@ def render():
         # --- HIER DIE NEUE RADIO-BOX FÜR DIE TAGE EINFÜGEN ---
         _runden = active_rounds(store)
         _std = default_round(store)
+        def _round_changed():
+            # Rundenwechsel: BIS-Bildschirm mitnehmen, falls 'automatisch' eingeschaltet ist
+            if store.data.get("bis_follow"):
+                _t = tag_of(st.session_state["admin_round_selector"])
+                _c = st.session_state.get(f"admin_sel_cat_{_t}")
+                if _c is None:
+                    _c = sorted(df_full['KATEGORIE'].unique())[0]
+                store.data["bis_public_tag"] = _t
+                store.data["bis_public_cat"] = _c.item() if hasattr(_c, "item") else _c
+                store.save_backup()
+
         admin_round = st.radio("Runde verwalten:", _runden, index=_runden.index(_std) if _std in _runden else 0,
-                               format_func=round_label, horizontal=True, key="admin_round_selector")
+                               format_func=round_label, horizontal=True, key="admin_round_selector", on_change=_round_changed)
         admin_tag = tag_of(admin_round)
         
         # Spaltenname dynamisch bestimmen (SELECTION 1 oder SELECTION 2)
@@ -60,7 +72,51 @@ def render():
 
     if df_full is not None:
         # Auch die Kategorie-Auswahl braucht einen tagesabhängigen Key
-        sel_cat = st.selectbox("Kategorie verwalten:", sorted(df_full['KATEGORIE'].unique()), key=f"admin_sel_cat_{admin_tag}")
+        def _push_to_bis_screen(_tag=admin_tag):
+            """Schreibt Runde + Kategorie auf den BIS-Bildschirm, aber nur wenn 'automatisch' eingeschaltet ist."""
+            if store.data.get("bis_follow"):
+                _c = st.session_state.get(f"admin_sel_cat_{_tag}")
+                store.data["bis_public_tag"] = _tag
+                store.data["bis_public_cat"] = None if _c is None else (_c.item() if hasattr(_c, "item") else _c)
+                store.save_backup()
+
+        def _follow_changed(_tag=admin_tag):
+            if st.session_state["bis_follow_cb"]:
+                store.data["bis_follow"] = True
+                _push_to_bis_screen(_tag)
+            else:
+                store.data["bis_follow"] = False
+                store.data["bis_public_tag"] = None
+                store.data["bis_public_cat"] = None
+                store.save_backup()
+                
+        sel_cat = st.selectbox("Kategorie verwalten:", sorted(df_full['KATEGORIE'].unique()), key=f"admin_sel_cat_{admin_tag}",
+                               on_change=_push_to_bis_screen)
+        st.session_state["bis_follow_cb"] = bool(store.data.get("bis_follow", False))
+        st.checkbox("📺 BIS-Bildschirm folgt automatisch dieser Runde und Kategorie", key="bis_follow_cb", on_change=_follow_changed)
+        if store.data.get("bis_follow"):
+            st.caption(f"BIS-Bildschirm zeigt: {round_label(int(str(store.data.get('bis_public_tag') or admin_tag).split()[-1]))}, Kategorie {store.data.get('bis_public_cat')}. "
+                       "Beim Wechseln der Kategorie oben schaltet er automatisch mit. Häkchen entfernen = Besucher wählen selbst.")
+        # --- Reihenfolge der Kategorien beim BIS (wird vor der BIS durchgegeben) ---
+        _all_cats = [str(c).replace(".0", "") for c in sorted(df_full['KATEGORIE'].unique())]
+        _ord_key = f"bis_order_ms_{admin_tag}"
+        def _order_changed(_tag=admin_tag, _k=_ord_key):
+            set_bis_order(store, _tag, st.session_state[_k])
+        def _next_cat(_tag=admin_tag):
+            _order = get_bis_order(store, _tag, _all_cats)
+            _cur = str(st.session_state.get(f"admin_sel_cat_{_tag}")).replace(".0", "")
+            _nxt = _order[(_order.index(_cur) + 1) % len(_order)] if _cur in _order else _order[0]
+            _opts = sorted(df_full['KATEGORIE'].unique())
+            _val = [o for o in _opts if str(o).replace(".0", "") == _nxt][0]
+            st.session_state[f"admin_sel_cat_{_tag}"] = _val
+            _push_to_bis_screen(_tag)
+        with st.expander("📋 Reihenfolge der Kategorien beim BIS", expanded=False):
+            _cur_order = get_bis_order(store, admin_tag, _all_cats)
+            st.session_state[_ord_key] = _cur_order
+            st.multiselect("Reihenfolge (Kategorien in der durchgegebenen Reihenfolge anklicken):", _all_cats, key=_ord_key, on_change=_order_changed)
+            st.caption("Aktuell: " + " ➜ ".join(f"Kat {c}" for c in _cur_order) + ". Nicht angeklickte Kategorien kommen am Schluss.")
+        st.button("➡️ Nächste Kategorie (nach dieser Reihenfolge)", key=f"next_cat_{admin_tag}", on_click=_next_cat)
+
         if not is_cat_open(store, admin_round, sel_cat):
             st.error(f"🔒 Kategorie {sel_cat} ist in {round_label(admin_round)} ({get_show_day(store)}) nicht freigegeben. Freigabe im Rundenmanager (Kategorien-Freigabe).")
             st.stop()
@@ -77,6 +133,27 @@ def render():
         st.checkbox("Von Hand als «BIS bereit» markieren", key=_mk, on_change=_cb_manual)
         bis_defs = [("Adult Male", [1,3,5,7,9], "M"), ("Adult Female", [1,3,5,7,9], "W"), ("Neuter Male", [2,4,6,8,10], "M"), ("Neuter Female", [2,4,6,8,10], "W"), ("Junior 8-12 Male", [11], "M"), ("Junior 8-12 Female", [11], "W"), ("Kitten 4-8 Male", [12], "M"), ("Kitten 4-8 Female", [12], "W")]
         
+        if cat_key(sel_cat) in NO_CLASS_CATEGORIES:
+            bis_defs = [(NO_CLASS_LABEL, None, None)]   # keine Klassen: eine Gruppe 'Nominierte Katzen' (mit Abstimmung)
+
+        # --- Sammelknopf: Nominationen aller Klassen dieser Kategorie auf einmal anzeigen/ausblenden ---
+        def _reveal_all(value, _tag=admin_tag, _cat=sel_cat, _labels=[d[0] for d in bis_defs]):
+            for _l in _labels:
+                store.data[f"reveal_{_tag}_{_cat}_{_l}"] = value
+            store.save_backup()
+
+        _labels_all = [d[0] for d in bis_defs]
+        _n_on = sum(1 for _l in _labels_all if store.data.get(f"reveal_{admin_tag}_{sel_cat}_{_l}", False))
+        st.markdown("<style>.alle-nom-btn div.stButton > button { height: 70px; font-size: 22px; font-weight: 900; }</style>", unsafe_allow_html=True)
+        st.markdown("<div class='alle-nom-btn'>", unsafe_allow_html=True)
+        _c1, _c2 = st.columns([2, 1])
+        _c1.button(f"👁️ NOMINATIONEN ALLER KLASSEN ANZEIGEN (Kategorie {sel_cat})", key=f"reveal_all_on_{admin_tag}_{sel_cat}",
+                   on_click=_reveal_all, args=(True,), disabled=(_n_on == len(_labels_all)))
+        _c2.button("Alle ausblenden", key=f"reveal_all_off_{admin_tag}_{sel_cat}",
+                   on_click=_reveal_all, args=(False,), disabled=(_n_on == 0))
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.caption(f"Zurzeit angezeigt: {_n_on} von {len(_labels_all)} Klassen. Einzelne Klassen kannst du unten weiterhin separat ein- und ausblenden.")
+
         for label, klassen, geschl in bis_defs:
             # Der Expander-Key wird tagesabhängig, damit der Auf-/Zuklapp-Status nicht vermischt wird
             with st.expander(f"KLASSE: {label} ({round_label(admin_round)})", expanded=True):
@@ -127,7 +204,7 @@ def render():
                     st.checkbox("BIS Gewinner anzeigen", key=f"cb2_{key_winner_reveal}",
                                 on_change=_store_set, args=(key_winner_reveal, f"cb2_{key_winner_reveal}"))
 					
-                    pool = df_full[(df_full['SELECTION'].astype(str).str.upper() == 'X') & (df_full['KATEGORIE'] == sel_cat) & (df_full['KLASSE_INTERNAL'].isin(klassen)) & (df_full['GESCHLECHT'].astype(str).str.upper() == geschl)]
+                    pool = df_full[(df_full['SELECTION'].astype(str).str.upper() == 'X') & (df_full['KATEGORIE'] == sel_cat) & class_mask(df_full, klassen, geschl)]
                     options = ["Automatisch (Stimmen)"] + sorted(pool['KAT_STR'].unique().tolist())
                     
                     # NEU: Anzeige immer aus dem Speicher, geschrieben wird nur bei echtem Klick

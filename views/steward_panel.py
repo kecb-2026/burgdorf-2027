@@ -162,8 +162,10 @@ def render():
                         if store.data[k]["flags"]["Zum Richten"]:
                             store.data[k]["flags"]["Gerichtet"] = False
                             store.data[k]["timestamp"] = time.time()
+                            store.data[k]["called_at"] = time.time()
                         else:
                             store.data[k]["flags"]["Wird gerichtet"] = False
+                            store.data[k].pop("called_at", None)
                         
                         store.save_backup()
                         st.rerun()
@@ -176,6 +178,8 @@ def render():
                     if st.button("⏳ TISCH / RICHTEN ⏳" if is_busy else "WIRD GERICHTET", key=f"btn_busy_{k}", disabled=gesperrt and not flags.get('Wird gerichtet')):
                         store.data[k]["flags"]["Wird gerichtet"] = not is_busy
                         if store.data[k]["flags"]["Wird gerichtet"]:
+                            if not store.data[k]["flags"].get("Zum Richten") or not store.data[k].get("called_at"):
+                                store.data[k]["called_at"] = time.time()
                             store.data[k]["flags"]["Zum Richten"] = True 
                             store.data[k]["flags"]["Gerichtet"] = False
                             store.data[k]["timestamp"] = time.time()

@@ -5,7 +5,8 @@ import pandas as pd
 import re
 import streamlit as st
 import time
-from core.data import get_full_label, load_labels, with_selection
+from core.config import NO_CLASS_LABEL
+from core.data import class_mask, get_full_label, load_labels, with_selection
 from core.bis import cat_status
 from core.store import get_store
 from core.ui import display_header_with_logo, round_banner
@@ -86,7 +87,7 @@ def render():
 
     tag = str(store.data.get("test_live_tag") or store.data.get("admin_selected_day", "Tag 1")).upper()
     df_full = with_selection(df_full, tag)
-    round_banner(tag)
+    round_banner(tag, cat=store.data.get("test_live_cat"))
     st.sidebar.info(f"📅 Aktiver Ausstellungstag: {tag}")
 
     cat = store.data.get("test_live_cat")
@@ -100,6 +101,7 @@ def render():
         "Neuter Male": ([2, 4, 6, 8, 10], "M"), "Neuter Female": ([2, 4, 6, 8, 10], "W"),
         "Junior 8-12 Male": ([11], "M"), "Junior 8-12 Female": ([11], "W"),
         "Kitten 4-8 Male": ([12], "M"), "Kitten 4-8 Female": ([12], "W"),
+        NO_CLASS_LABEL: (None, None),   # Kategorie ohne Klassen (Hauskatzen)
     }
     if label not in _defs:
         st.error(f"Unbekannte Klasse: {label}")
@@ -119,8 +121,7 @@ def render():
     pool = df_full[
         (df_full['SELECTION'].astype(str).str.strip().str.upper() == 'X')
         & (df_full['KATEGORIE'] == cat)
-        & (df_full['KLASSE_INTERNAL'].isin(klassen))
-        & (df_full['GESCHLECHT'].astype(str).str.upper() == geschl)
+        & class_mask(df_full, klassen, geschl)
     ]
 
     votes = store.data.get("votes", {})
