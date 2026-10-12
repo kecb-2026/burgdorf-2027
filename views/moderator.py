@@ -6,7 +6,7 @@ import re
 import streamlit as st
 import time
 from core.config import NO_CLASS_LABEL
-from core.data import class_mask, get_full_label, load_labels, with_selection
+from core.data import real_judges, class_mask, get_full_label, load_labels, with_selection
 from core.bis import cat_status
 from core.store import get_store
 from core.ui import display_header_with_logo, round_banner
@@ -76,6 +76,17 @@ def render():
         store.data[f"override_{tag}_{cat}_{label}"] = str(nr)
         _mod_show_winner(tag, cat, label, nr)
 
+    def _mod_request_tiebreak(key, judge_name, cats):
+        if judge_name and judge_name != "--":
+            store.data[key] = {"judge": judge_name, "cats": [str(c) for c in cats]}
+            store.save_backup()
+
+    def _mod_cancel_tiebreak(key, vote_key):
+        store.data.pop(key, None)
+        if isinstance(store.data.get("votes"), dict):
+            store.data["votes"].pop(vote_key, None)
+        store.save_backup()
+
     def _e(x):
         return _html.escape(str(x))
 
@@ -129,17 +140,28 @@ def render():
         votes = {}
     prefix = f"v_{tag}_{cat}_{label}_"
 
-    # Beteiligt sind nur Richter, die in dieser Klasse eine Katze nominiert haben,
-    # plus alle, die tatsächlich schon eine Stimme abgegeben haben.
-    _judge_set = set(str(r).strip() for r in pool[r_col].unique()
-                     if str(r).strip() not in ("", "nan", "-"))
+    # Beteiligt sind alle Richter, die in dieser Runde in dieser Kategorie richten
+    # (nicht nur die, die selbst eine Katze nominiert haben), plus alle, die schon eine Stimme abgegeben haben.
+    _in_round = df_full[(df_full[tag].astype(str).str.strip().str.upper() == "X") & (df_full['KATEGORIE'] == cat)] \
+        if tag in df_full.columns else df_full.iloc[0:0]
+    _judge_set = set(real_judges(_in_round[r_col]))
+    _judge_set |= set(str(r).strip() for r in pool[r_col].unique() if str(r).strip() not in ("", "nan", "-"))
     for _k in votes:
         if str(_k).startswith(prefix) and _mod_parse_vote(votes[_k])[1] != "none":
             _judge_set.add(str(_k)[len(prefix):])
+    _tb_key = f"tiebreak_{tag}_{cat}_{label}"
+    _tb = store.data.get(_tb_key) if isinstance(store.data.get(_tb_key), dict) else None
+    _regular = set(_judge_set)
+    if _tb:
+        _judge_set.add(_tb["judge"])
     judges = sorted(_judge_set)
     override = store.data.get(f"override_{tag}_{cat}_{label}", "Automatisch (Stimmen)")
     per_judge, counts, n_conf, winner, source, note, revote = _mod_summary(votes, prefix, judges, override)
     winner_revealed = bool(store.data.get(f"winner_reveal_{tag}_{cat}_{label}", False))
+    if _tb and winner is None and source is None and note.startswith("Warte auf"):
+        _reg_open = [j for j in _regular if per_judge[j][1] != "bestaerkt"]
+        if not _reg_open:
+            note = f"Gleichstand – Stichentscheid durch {_tb['judge']}: wartet auf die Stimme."
 
     # --- Kopfzeile: aktive Runde ---
     st.markdown(
@@ -194,6 +216,26 @@ def render():
                 f"<div style='background-color:#f1f3f5; padding:14px 18px; border-radius:10px; border:2px dashed #adb5bd; font-size:20px;'>{msg}</div>",
                 unsafe_allow_html=True,
             )
+            if note.startswith("Gleichstand"):
+                _tied = [k for k, c in counts.items() if c == max(counts.values())] if counts else []
+                if _tb is None and not winner_revealed:
+                    _all_j = set()
+                    for _n in (1, 2, 3):
+                        _c = f"RICHTER TAG {_n}"
+                        if _c in df_full.columns:
+                            _all_j |= set(real_judges(df_full[_c]))
+                    _cands = sorted(_all_j - _regular)
+                    st.markdown("<div style='font-size:18px; font-weight:bold; margin-top:12px;'>🗳️ Stichentscheid durch zusätzlichen Richter</div>", unsafe_allow_html=True)
+                    if _cands:
+                        _pick = st.selectbox("Richter für den Stichentscheid:", ["--"] + _cands, key=f"mod_tb_pick_{tag}_{cat}_{label}")
+                        st.button("Stichentscheid anfordern", key=f"mod_tb_go_{tag}_{cat}_{label}",
+                                  disabled=(_pick == "--"), on_click=_mod_request_tiebreak, args=(_tb_key, _pick, _tied))
+                    else:
+                        st.info("Es gibt keinen weiteren Richter ausserhalb dieser Runde.")
+                elif _tb is not None:
+                    st.markdown(f"<div style='font-size:16px; margin-top:10px;'>🗳️ Stichentscheid angefordert bei <b>{_e(_tb['judge'])}</b> (Katzen {', '.join('#' + _e(c) for c in _tb['cats'])}).</div>", unsafe_allow_html=True)
+                    st.button("Stichentscheid zurücknehmen", key=f"mod_tb_cancel_{tag}_{cat}_{label}",
+                              on_click=_mod_cancel_tiebreak, args=(_tb_key, prefix + _tb["judge"]))
     with c_btn:
         st.button(
             "🏆 OVERLAY NOCHMALS ZEIGEN" if winner_revealed else "🏆 GEWINNER ZEIGEN",
@@ -280,7 +322,7 @@ def render():
             st.markdown(
                 f"<div style='display:flex; align-items:center; gap:12px; background:{bg}; border-radius:10px; padding:10px 14px; margin-bottom:8px;'>"
                 f"<div style='flex:1;'>"
-                f"<div style='font-size:18px; font-weight:bold;'>{_e(j)}</div>"
+                f"<div style='font-size:18px; font-weight:bold;'>{_e(j)}{' (Stichentscheid)' if (_tb and j == _tb['judge']) else ''}</div>"
                 f"<div style='font-size:14px;'>{txt}</div>"
                 f"</div>"
                 f"<div style='font-size:26px; font-weight:900; color:#1a4a9e;'>{nrtxt}</div>"
