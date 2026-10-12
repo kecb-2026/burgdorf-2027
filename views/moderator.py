@@ -153,13 +153,13 @@ def render():
 
     # --- Ergebnis + ein Knopf ---
     _bsel = lambda suf="": ",".join(
-        'html body div[data-testid="stHorizontalBlock"] > div:nth-child(n) div[data-testid="stButton"].st-key-%s > button%s' % (k, suf)
+        'html body div[data-testid="stHorizontalBlock"] > div:nth-child(n) .st-key-%s.st-key-%s button%s' % (k, k, suf)
         for k in ("mod_show_winner", "mod_show_winner_early"))
     st.markdown("<style>" +
-        _bsel() + "{width:100% !important; min-width:0 !important; height:150px !important; min-height:150px !important; padding:8px 12px !important; "
+        _bsel() + "{width:100% !important; min-width:0 !important; height:110px !important; min-height:110px !important; padding:8px 12px !important; "
         "border-radius:18px !important; background-color:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; "
         "display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; animation:none !important;}" +
-        _bsel(" p") + "{font-size:36px !important; font-weight:900 !important; line-height:1.1 !important; white-space:normal !important; "
+        _bsel(" p") + "{font-size:30px !important; font-weight:900 !important; line-height:1.1 !important; white-space:normal !important; "
         "text-align:center !important; margin:0 !important;}" +
         _bsel(":disabled") + "{opacity:.45 !important;}" +
         "</style>", unsafe_allow_html=True)
