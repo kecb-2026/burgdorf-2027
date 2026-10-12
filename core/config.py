@@ -30,7 +30,7 @@ ACCESS_MAP = {
     "Steward": ["Steward_Panel", "Dashboard", "BIS_Public", "BIS_Ablauf"],
     "Admin": ["Home", "Rundenmanager", "Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf", "Moderator", "Steward_Panel", "Live_Admin", "Live_Voting",
               "QR_Codes_Gen", "Nominated_Cats", "Judge_List", "Nomination_Labels", "Admin_Panel",
-              "Excel_Upload", "Excel_Edit", "Import_PDF"],
+              "Excel_Upload", "Excel_Edit", "Alters_Check", "Import_PDF"],
 }
 
 # ---------------------------------------------------------------------------
