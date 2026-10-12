@@ -58,7 +58,15 @@ def render():
                                     })
                     
                     #judge_entries.sort(key=lambda x: x["data"].get("timestamp", 0))
-                    judge_entries.sort(key=lambda x: (not x["data"].get("flags", {}).get("Wird gerichtet", False), x["data"].get("timestamp", 0)))
+                    def _dash_sort(x):
+                        _d = x["data"]
+                        _f = _d.get("flags", {}) if isinstance(_d.get("flags"), dict) else {}
+                        _grp = 0 if _f.get("Wird gerichtet") else (1 if _f.get("Zum Richten") else 2)
+                        _t = _d.get("called_at") or _d.get("timestamp", 0) or 0       # Aufrufzeit (stabil), sonst letzte Aenderung
+                        _nr = x["key"].split("|")[0]
+                        return (_grp, _t, int(_nr) if _nr.isdigit() else 99999)
+                    # Reihenfolge: zuerst am Tisch, dann aufgerufen (in Aufrufreihenfolge), zuletzt nur BIV/NOM
+                    judge_entries.sort(key=_dash_sort)
 
                     
                     for entry in judge_entries:
