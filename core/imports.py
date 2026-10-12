@@ -5,7 +5,7 @@ ueberleben den Admin-Reset ("ALLE DATEN ZURUECKSETZEN"), ausser man waehlt es au
 import re
 from io import BytesIO
 
-ABSENT_KEY = "import_absent"   # {"99": {"date": "10.10.2026", "src": "pdf"|"manuell"}}
+ABSENT_KEY = "import_absent"   # {"TAG 1": {"99": {"date": "10.10.2026", "src": "pdf"|"manuell"}}, ...}
 NOM_KEY = "import_nom"         # {"TAG 1": {"nrs": ["1","5"], "date": "10.10.2026"}}
 GATE_KEY = "cat_gate"         # {"Samstag": {"1": ["2","4"], ...}}  = gesperrte Kategorien je Runde
 SHOWDAY_KEY = "show_day"      # "Samstag" | "Sonntag"
@@ -40,30 +40,45 @@ def parse_text_numbers(text):
     return nums, date, ignored
 
 
-# ---------------------------------------------------------------- Abwesende
-def get_absent(store):
+# ---------------------------------------------------------------- Abwesende (pro Runde)
+def _absent_all(store):
+    """{'TAG 1': {nr: meta}, ...}. Eine alte, flache Liste {nr: meta} gilt fuer alle Runden."""
     d = store.data.get(ABSENT_KEY)
-    return d if isinstance(d, dict) else {}
+    if not isinstance(d, dict) or not d:
+        return {}
+    if all(str(k).startswith("TAG ") for k in d):
+        return {k: dict(v) for k, v in d.items() if isinstance(v, dict)}
+    return {f"TAG {n}": dict(d) for n in (1, 2, 3)}
 
 
-def is_absent(store, nr):
-    return str(nr) in get_absent(store)
+def get_absent(store, n):
+    return _absent_all(store).get(f"TAG {int(n)}", {})
 
 
-def add_absent(store, nrs, date=None, src="pdf", replace_pdf=False):
-    cur = dict(get_absent(store))
+def is_absent(store, nr, n):
+    return str(nr) in get_absent(store, n)
+
+
+def add_absent(store, nrs, n, date=None, src="pdf", replace_pdf=False):
+    allr = _absent_all(store)
+    tag = f"TAG {int(n)}"
+    cur = dict(allr.get(tag, {}))
     if replace_pdf:
         cur = {k: v for k, v in cur.items() if v.get("src") != "pdf"}
-    for n in nrs:
-        cur[str(n)] = {"date": date or "", "src": src}
-    store.data[ABSENT_KEY] = cur
+    for x in nrs:
+        cur[str(x)] = {"date": date or "", "src": src}
+    allr[tag] = cur
+    store.data[ABSENT_KEY] = allr
     store.save_backup()
 
 
-def release_absent(store, nr):
-    cur = dict(get_absent(store))
+def release_absent(store, nr, n):
+    allr = _absent_all(store)
+    tag = f"TAG {int(n)}"
+    cur = dict(allr.get(tag, {}))
     cur.pop(str(nr), None)
-    store.data[ABSENT_KEY] = cur
+    allr[tag] = cur
+    store.data[ABSENT_KEY] = allr
     store.save_backup()
 
 

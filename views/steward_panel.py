@@ -140,10 +140,10 @@ def render():
                 # --- Sperre: Katze ist bei einem anderen Richter belegt ---
                 belegt = busy_elsewhere(store, nr, mein_richter)
                 ist_admin = st.session_state.get("user_role") == "Admin"
-                abwesend = is_absent(store, nr)
+                abwesend = is_absent(store, nr, runde)
                 gesperrt = (bool(belegt) and not ist_admin) or abwesend
                 if abwesend:
-                    st.error(f"🚫 Katze {nr} ist ABWESEND (PDF-Liste). Freigabe nur durch die Ausstellungsleitung im PDF-Import.")
+                    st.error(f"🚫 Katze {nr} ist in dieser Runde ABWESEND. Freigabe nur durch die Ausstellungsleitung im PDF-Import.")
                 if belegt:
                     wo = ", ".join(f"{o} ({t})" for o, t in belegt)
                     if ist_admin:

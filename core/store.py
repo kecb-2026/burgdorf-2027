@@ -8,7 +8,13 @@ import streamlit as st
 class GlobalStore:
     def __init__(self):
         # Hier nutzen wir die Werte aus deinen Secrets
-        url = st.secrets["NEXT_PUBLIC_SUPABASE_URL"]
+        url = str(st.secrets["NEXT_PUBLIC_SUPABASE_URL"]).strip().strip('"').strip("'")
+        # Nur die Basisadresse zaehlt (https://xxxx.supabase.co). Ein angehaengtes "/" oder "/rest/v1"
+        # fuehrt sonst zum Fehler PGRST125 "Invalid path specified in request URL".
+        url = url.rstrip("/")
+        for _suffix in ("/rest/v1", "/rest"):
+            if url.endswith(_suffix):
+                url = url[: -len(_suffix)].rstrip("/")
         key = st.secrets["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]
 
         self.client: Client = create_client(url, key)

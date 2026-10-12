@@ -112,17 +112,17 @@ def _my_cats(store, df_full):
             continue
         row = m.iloc[0]
         lines = []
-        if is_absent(store, nr):
-            lines.append("<div style='color:#666;'>🚫 Als abwesend gemeldet</div>")
         for n in (1, 2, 3):
             tag, rc = tag_of(n), f"RICHTER TAG {n}"
             if tag not in df_full.columns or str(row.get(tag, "")).strip().upper() != "X":
                 continue
             judge = str(row.get(rc, "")).strip()
             kind, text = _status_of(store, nr, judge)
+            if is_absent(store, nr, n):
+                kind, text = "absent", "🚫 Als abwesend gemeldet"
             if kind in ("called", "table"):
                 alerts.append((nr, judge, kind))
-            col = {"called": "#d32f2f", "table": "#ff9800", "done": "#2e7d32", "wait": "#555"}[kind]
+            col = {"called": "#d32f2f", "table": "#ff9800", "done": "#2e7d32", "wait": "#555", "absent": "#666"}[kind]
             lines.append(
                 f"<div style='margin-top:6px; padding:6px 8px; border-left:8px solid {round_color(n)}; background:{round_tint(n)}; "
                 f"border-radius:6px; text-align:left;'><b>{round_label(n)}</b> · {_h.escape(judge)}<br>"

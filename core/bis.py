@@ -21,7 +21,7 @@ def cat_status(store, df, n, cat):
     open_nrs, total = [], 0
     for _, r in sub.iterrows():
         nr, judge = str(r["KAT_STR"]), str(r[rc]).strip()
-        if is_absent(store, nr):
+        if is_absent(store, nr, n):
             continue
         total += 1
         v = store.data.get(f"{nr}|{judge}")

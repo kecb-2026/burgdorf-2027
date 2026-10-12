@@ -43,13 +43,17 @@ def render():
 
     # ------------------------------------------------------------ ABWESENDE
     with tab_abs:
-        st.write("Lade das PDF **«Liste der abwesenden Katzen»** hoch. Erkannt werden alle Zeilen, die nur eine Katalognummer enthalten. Vor dem Übernehmen siehst du eine Vorschau.")
-        up = st.file_uploader("PDF mit abwesenden Katzen", type=["pdf"], key="imp_abs_pdf")
+        st.write("Lade das PDF **«Liste der abwesenden Katzen»** für eine Runde hoch. Jede Runde hat ihre eigene Liste. Erkannt werden alle Zeilen, die nur eine Katalognummer enthalten. Vor dem Übernehmen siehst du eine Vorschau.")
+        rounds_abs = sorted(r for r in ROUNDS if f"TAG {r}" in df.columns) or [1]
+        dflt_a = default_round(store)
+        ra = st.radio("Für welche Runde?", rounds_abs, index=rounds_abs.index(dflt_a) if dflt_a in rounds_abs else 0,
+                      format_func=lambda n: round_label(n), horizontal=True, key="imp_abs_round")
+        up = st.file_uploader("PDF mit abwesenden Katzen", type=["pdf"], key=f"imp_abs_pdf_{ra}")
         if up is not None:
             res = _read_pdf(up)
             if res:
                 nums, date, ignored = res
-                cur = get_absent(store)
+                cur = get_absent(store, ra)
                 rows = []
                 for n in nums:
                     info = _cat_info(df, n)
@@ -63,38 +67,38 @@ def render():
                 unknown = [r["Nr."] for r in rows if r["Status"].startswith("⚠️")]
                 if unknown:
                     st.warning(f"Nicht im Excel und deshalb übersprungen: {', '.join(unknown)}")
-                mode = st.radio("Wie übernehmen?", ["Zur bestehenden Liste hinzufügen", "PDF-Einträge ersetzen (frühere PDF-Liste wird gelöscht, manuelle bleiben)"], key="imp_abs_mode")
-                if st.button("✅ Abwesende übernehmen", key="imp_abs_go", disabled=not nums):
+                mode = st.radio("Wie übernehmen?", ["Zur bestehenden Liste hinzufügen", "PDF-Einträge ersetzen (frühere PDF-Liste dieser Runde wird gelöscht, manuelle bleiben)"], key=f"imp_abs_mode_{ra}")
+                if st.button(f"✅ Abwesende für {round_label(ra)} übernehmen", key=f"imp_abs_go_{ra}", disabled=not nums):
                     ok = [n for n in nums if n not in unknown]
-                    add_absent(store, ok, date=date, src="pdf", replace_pdf=mode.startswith("PDF-Einträge"))
-                    st.success(f"{len(ok)} Katzen als abwesend gespeichert.")
+                    add_absent(store, ok, ra, date=date, src="pdf", replace_pdf=mode.startswith("PDF-Einträge"))
+                    st.success(f"{len(ok)} Katzen für {round_label(ra)} als abwesend gespeichert.")
                     st.rerun()
 
         st.divider()
-        st.subheader("Aktuell abwesend")
-        cur = get_absent(store)
+        st.subheader(f"Aktuell abwesend in {round_label(ra)}")
+        cur = get_absent(store, ra)
         if not cur:
-            st.info("Zurzeit ist keine Katze als abwesend markiert.")
+            st.info("In dieser Runde ist keine Katze als abwesend markiert.")
         for nr in sorted(cur, key=lambda x: int(x) if x.isdigit() else 0):
             info = _cat_info(df, nr)
             meta = cur[nr]
             c1, c2 = st.columns([5, 1], vertical_alignment="center")
             c1.markdown(f"**Nr. {nr}** · {info[0] if info else 'nicht im Excel'} · {info[1] if info else ''} "
                         f"<span style='color:#888'>({meta.get('src','')} {meta.get('date','')})</span>", unsafe_allow_html=True)
-            if c2.button("Wieder freigeben", key=f"imp_rel_{nr}"):
-                release_absent(store, nr)
+            if c2.button("Wieder freigeben", key=f"imp_rel_{ra}_{nr}"):
+                release_absent(store, nr, ra)
                 st.rerun()
         st.markdown("**Manuell hinzufügen**")
         m1, m2 = st.columns([3, 1], vertical_alignment="bottom")
-        man = m1.text_input("Katalognummer", key="imp_abs_manual", placeholder="z. B. 57")
-        if m2.button("Hinzufügen", key="imp_abs_manual_btn"):
+        man = m1.text_input("Katalognummer", key=f"imp_abs_manual_{ra}", placeholder="z. B. 57")
+        if m2.button("Hinzufügen", key=f"imp_abs_manual_btn_{ra}"):
             n = man.strip()
             if not re.fullmatch(r"\d{1,4}", n):
                 st.error("Bitte eine Katalognummer eingeben.")
             elif _cat_info(df, str(int(n))) is None:
                 st.error(f"Nr. {n} ist nicht im Excel.")
             else:
-                add_absent(store, [str(int(n))], src="manuell")
+                add_absent(store, [str(int(n))], ra, src="manuell")
                 st.rerun()
 
     # ------------------------------------------------------------ NOMINIERTE
