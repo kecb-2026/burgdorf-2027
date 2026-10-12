@@ -28,9 +28,10 @@ ACCESS_MAP = {
     "Public": ["Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf", "Login"],
     "Richter": ["Live_Voting", "Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf"],
     "Steward": ["Steward_Panel", "Dashboard", "BIS_Public", "BIS_Ablauf"],
-    "Admin": ["Home", "Rundenmanager", "Dashboard", "Live_Handy", "BIS_Public", "BIS_Ablauf", "Moderator", "Steward_Panel", "Live_Admin", "Live_Voting",
-              "QR_Codes_Gen", "Nominated_Cats", "Judge_List", "Nomination_Labels", "Admin_Panel",
-              "Excel_Upload", "Excel_Edit", "Alters_Check", "Import_PDF"],
+    "Admin": ["Home", "Rundenmanager", "Dashboard", "Steward_Panel", "Live_Voting",
+              "BIS_Public", "BIS_Ablauf", "Live_Admin", "Moderator", "Live_Handy",
+              "QR_Codes_Gen", "Nominated_Cats", "Nomination_Labels", "Judge_List",
+              "Import_PDF", "Excel_Upload", "Excel_Edit", "Alters_Check", "Admin_Panel"],
 }
 
 # ---------------------------------------------------------------------------
