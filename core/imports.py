@@ -9,7 +9,8 @@ ABSENT_KEY = "import_absent"   # {"TAG 1": {"99": {"date": "10.10.2026", "src": 
 NOM_KEY = "import_nom"         # {"TAG 1": {"nrs": ["1","5"], "date": "10.10.2026"}}
 GATE_KEY = "cat_gate"         # {"Samstag": {"1": ["2","4"], ...}}  = gesperrte Kategorien je Runde
 SHOWDAY_KEY = "show_day"      # "Samstag" | "Sonntag"
-PROTECTED_KEYS = (ABSENT_KEY, NOM_KEY, GATE_KEY, SHOWDAY_KEY, "bis_order", "bis_start")
+HANDY_LOCK_KEY = "handy_locked"  # Notausknopf: Handy-Ansicht fuer Aussteller gesperrt
+PROTECTED_KEYS = (ABSENT_KEY, NOM_KEY, GATE_KEY, SHOWDAY_KEY, "bis_order", "bis_start", HANDY_LOCK_KEY)
 
 
 # ---------------------------------------------------------------- PDF lesen
