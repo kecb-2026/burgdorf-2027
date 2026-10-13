@@ -200,3 +200,4 @@ def render():
         _my_cats(store, df_full)
     else:
         _by_judge(store, df_full)
+    st.caption("Stand v32 · aktualisiert sich jede Minute")
