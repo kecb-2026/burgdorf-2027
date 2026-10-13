@@ -121,6 +121,16 @@ def render():
 
 
         
+        # Nur EINE Katze nominiert: keine Abstimmung noetig, sie gewinnt automatisch
+        _one_nr = autonext.single_nominee(df_full, tag, active_cat, active_label)
+        if _one_nr:
+            st.markdown(
+                "<div style='background-color:#e7f1ff; padding:18px; border-radius:10px; border-left:5px solid #1a4a9e; margin-bottom:12px;'>"
+                f"<div style='font-size:20px; font-weight:bold; color:#1a4a9e;'>Nur eine Katze nominiert / Only one cat nominated: #{_one_nr}</div>"
+                "<div style='font-size:17px; color:#333; margin-top:6px;'>Keine Abstimmung nötig, diese Katze gewinnt automatisch.<br>"
+                "No vote needed, this cat wins automatically.</div></div>", unsafe_allow_html=True)
+            st.stop()
+
         # Richter-Identität ermitteln (entweder via URL oder Box)
         c1, _ = st.columns([2, 2])
         url_judge_name = st.session_state.get("url_judge", "--")

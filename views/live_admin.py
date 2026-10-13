@@ -232,6 +232,9 @@ def render():
                 
                 with c_ctrl:
                     st.markdown("**Steuerung**")
+                    _one_nr = autonext.single_nominee(df_full, admin_tag, sel_cat, label)
+                    if _one_nr:
+                        st.info(f"ℹ️ Nur eine Katze nominiert (#{_one_nr}): Sie gewinnt automatisch, keine Abstimmung nötig.")
                     
                     # Die Datenschlüssel im store.data erhalten den Tag, damit Werte getrennt gespeichert werden
                     key_reveal = f"reveal_{admin_tag}_{sel_cat}_{label}"
