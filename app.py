@@ -102,6 +102,26 @@ if "judge" in q_params:
 elif "url_judge" not in st.session_state: 
     st.session_state.url_judge = "--"
 
+# --- HANDY-MODUS FÜR AUSSTELLER (nur Live Handy, sonst nichts) ---
+# Aufruf: <App-Adresse>?view=live  (ohne Login). Kein Menü, keine Seitenleiste,
+# keine Streamlit-Leisten: es gibt nichts, wo man sich verklicken könnte.
+if (str(q_params.get("view", "")).lower() in ("live", "handy")
+        and not st.session_state.authenticated):
+    st.session_state.view = "Live_Handy"
+    st.markdown("""
+        <style>
+        [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"],
+        [data-testid="collapsedControl"], [data-testid="stSidebarNav"],
+        [data-testid="stToolbar"], [data-testid="stHeader"], header,
+        [data-testid="stDecoration"], [data-testid="stStatusWidget"],
+        .stAppDeployButton, #MainMenu, footer,
+        [class*="viewerBadge"], [class*="_profileContainer"] { display: none !important; }
+        .block-container { padding-top: 1rem !important; }
+        </style>
+    """, unsafe_allow_html=True)
+    importlib.import_module(VIEWS["Live_Handy"]).render()
+    st.stop()
+
 # --- NAVIGATION & ZUGRIFF ---
 st.markdown("""
         <style>
