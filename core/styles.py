@@ -395,6 +395,15 @@ def inject_global_css():
         html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div:nth-child(5) {
             flex: 1 1 100% !important; width: 100% !important; min-width: 100% !important;
         }
+        /* Alle Huellen um den Button auf volle Zellenbreite ziehen (sonst schrumpfen die Buttons auf Textbreite) */
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div > div,
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div [data-testid="stVerticalBlock"],
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div [data-testid="stElementContainer"],
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div [data-testid="stButton"],
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div div.stButton,
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div [class*="st-key-btn_"] {
+            width: 100% !important; max-width: 100% !important; min-width: 0 !important; flex: 1 1 100% !important;
+        }
         html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div button {
             width: 100% !important; min-width: 0 !important; height: 56px !important; min-height: 56px !important;
             font-size: 16px !important; font-weight: bold !important; line-height: 1.15 !important;
