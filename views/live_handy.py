@@ -183,6 +183,18 @@ def _my_cats(store, df_full):
 
 def render():
     store = get_store()
+    # Notausknopf (Admin-Panel): gesperrt -> nur Hinweis, keine Daten laden, seltener aktualisieren
+    if store.data.get("handy_locked"):
+        st_autorefresh(interval=300000, key="live_handy_refresh_locked")
+        st.markdown("<style>.block-container{padding-top:1rem; max-width:560px;}</style>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='border:3px solid #1a4a9e; border-radius:14px; padding:20px; margin-top:20px; text-align:center;'>"
+            "<div style='font-size:40px;'>📢</div>"
+            "<div style='font-size:22px; font-weight:900; color:#1a4a9e; margin:8px 0;'>Die Handy-Anzeige ist vorübergehend abgeschaltet.</div>"
+            "<div style='font-size:18px; color:#333;'>Bitte achten Sie auf die Aufrufe und den Bildschirm in der Halle.</div>"
+            "</div>", unsafe_allow_html=True)
+        st.caption("Stand v33 · diese Seite prüft alle 5 Minuten, ob die Anzeige wieder frei ist")
+        return
     st_autorefresh(interval=60000, key="live_handy_refresh")
     st.markdown("<style>.block-container{padding-top:1rem; max-width:560px;}</style>", unsafe_allow_html=True)
     st.markdown("<div style='font-size:22px; font-weight:900; color:#1a4a9e; margin-bottom:6px;'>📢 Katzenaufruf</div>", unsafe_allow_html=True)
@@ -200,4 +212,4 @@ def render():
         _my_cats(store, df_full)
     else:
         _by_judge(store, df_full)
-    st.caption("Stand v32 · aktualisiert sich jede Minute")
+    st.caption("Stand v33 · aktualisiert sich jede Minute")

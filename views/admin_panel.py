@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Ansicht: Admin_Panel"""
 import streamlit as st
-from core.imports import reset_keep_protected
+from core.imports import HANDY_LOCK_KEY, reset_keep_protected
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -17,6 +17,23 @@ def render():
         store.active_overlay = None
         store.save_backup()
         st.success("Speicher geleert!")
+
+    # --- NOTAUSKNOPF: Handy-Ansicht fuer Aussteller sperren ---
+    st.markdown("---")
+    st.subheader("🛑 Notausknopf Handy-Ansicht")
+    st.write("Wenn der Server zu stark belastet wird: Sperrt die Handy-Seite für alle Aussteller. "
+             "Sie sehen nur noch einen Hinweis, es werden keine Katzendaten mehr geladen und die Seite "
+             "aktualisiert sich nur noch alle 5 Minuten. Richter, Steward und Dashboard sind nicht betroffen.")
+    _locked = bool(store.data.get(HANDY_LOCK_KEY, False))
+    _new = st.toggle("Handy-Ansicht für Aussteller sperren", value=_locked, key="handy_lock_toggle")
+    if _new != _locked:
+        store.data[HANDY_LOCK_KEY] = _new
+        store.save_backup()
+        st.rerun()
+    if _locked:
+        st.error("🛑 Die Handy-Ansicht ist GESPERRT. Aussteller sehen nur den Hinweis.")
+    else:
+        st.success("✅ Die Handy-Ansicht ist freigegeben.")
 
     # --- HIER IST DER NEUE BUTTON SAUBER EINIGERÜCKT ---
 
