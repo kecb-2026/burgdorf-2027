@@ -384,6 +384,26 @@ def inject_global_css():
     .steward-card-wrapper div[data-testid="stHorizontalBlock"] > div:nth-child(4) button:hover { background-color: #e0a800 !important; }
     .steward-card-wrapper div[data-testid="stHorizontalBlock"] > div:nth-child(5) button:hover { background-color: #5a6268 !important; }
     
+    /* --- STEWARD AUF DEM HANDY: Buttons als 2er-Raster, gross und gleich breit --- */
+    @media (max-width: 700px) {
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) {
+            display: flex !important; flex-flow: row wrap !important; gap: 10px !important; align-items: stretch !important;
+        }
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div {
+            flex: 1 1 calc(50% - 10px) !important; width: calc(50% - 10px) !important; min-width: calc(50% - 10px) !important;
+        }
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div:nth-child(5) {
+            flex: 1 1 100% !important; width: 100% !important; min-width: 100% !important;
+        }
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div button {
+            width: 100% !important; min-width: 0 !important; height: 56px !important; min-height: 56px !important;
+            font-size: 16px !important; font-weight: bold !important; line-height: 1.15 !important;
+            padding: 4px 6px !important; border-radius: 12px !important; white-space: normal !important;
+        }
+        html body div[data-testid="stHorizontalBlock"]:has([class*="st-key-btn_rich_"]) > div button p {
+            font-size: 16px !important; line-height: 1.15 !important; margin: 0 !important;
+        }
+    }
     .tag-wirdgerichtet { background-color: #ff9800 !important; color: white; }
 
 
