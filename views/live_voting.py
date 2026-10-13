@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
 from core.data import class_mask, get_full_label, load_labels, real_judges, with_selection
+import core.autonext as autonext
 from core.store import get_store
 from core.ui import display_header_with_logo, round_banner
 
@@ -12,6 +13,7 @@ from core.ui import display_header_with_logo, round_banner
 def render():
     store = get_store()
     st_autorefresh(interval=4000, key="test_live_voting_refresh")
+    autonext.process(store)   # faelligen automatischen Klassenwechsel ausfuehren
     display_header_with_logo("🗳️  Judge Live Voting")
    
     df_full = load_labels()

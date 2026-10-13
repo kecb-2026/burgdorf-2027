@@ -8,6 +8,7 @@ import time
 from core.config import NO_CLASS_LABEL
 from core.data import real_judges, class_mask, get_full_label, load_labels, with_selection
 from core.bis import cat_status
+import core.autonext as autonext
 from core.store import get_store
 from core.ui import display_header_with_logo, round_banner
 
@@ -16,6 +17,7 @@ def render():
     store = get_store()
     import html as _html
     st_autorefresh(interval=2000, key="moderator_refresh")
+    autonext.process(store)   # faelligen automatischen Klassenwechsel ausfuehren
 
     _NO_VOTE = ("Keine Wahl", "Keine Wahl/Not chosen yet")
 
@@ -69,6 +71,7 @@ def render():
             if not _m.empty:
                 store.active_overlay = _m.iloc[0].to_dict()
                 store.overlay_start_time = time.time()
+        autonext.schedule(store, tag, cat, label)   # nach der Wartezeit zur naechsten Klasse
         store.save_backup()
 
     def _mod_show_early(tag, cat, label, nr):
@@ -169,6 +172,12 @@ def render():
     judges = sorted(_judge_set)
     override = store.data.get(f"override_{tag}_{cat}_{label}", "Automatisch (Stimmen)")
     per_judge, counts, n_conf, winner, source, note, revote = _mod_summary(votes, prefix, judges, override)
+    # Nur EINE Katze nominiert: sie gewinnt automatisch, die Richter haben keine Wahl.
+    # Der Gewinner-Knopf ist sofort aktiv, es muss nicht auf Richterstimmen gewartet werden.
+    _single = None
+    if winner is None and (not override or override == "Automatisch (Stimmen)") and pool['KAT_STR'].astype(str).nunique() == 1:
+        _single = str(pool['KAT_STR'].astype(str).iloc[0])
+        winner, source, note = _single, "einzige", ""
     winner_revealed = bool(store.data.get(f"winner_reveal_{tag}_{cat}_{label}", False))
 
     # --- Kopfzeile: aktive Runde ---
@@ -202,7 +211,9 @@ def render():
                 w_text = f"{_e(_wr.get('NAME', ''))} · {_e(get_full_label(_wr))}"
             else:
                 w_text = ""
-            src = "vom Admin festgelegt" if source == "admin" else f"{counts.get(str(winner), 0)} Stimmen"
+            src = ("vom Admin festgelegt" if source == "admin"
+                   else "einzige nominierte Katze, keine Abstimmung nötig" if source == "einzige"
+                   else f"{counts.get(str(winner), 0)} Stimmen")
             st.markdown(
                 f"<div style='background-color:#fff3cd; padding:14px 18px; border-radius:10px; border:3px solid #d4af37;'>"
                 f"<div style='font-size:15px; color:#856404;'>ERGEBNIS ({_e(src)})</div>"
@@ -257,7 +268,7 @@ def render():
             "🏆 OVERLAY NOCHMALS ZEIGEN" if winner_revealed else "🏆 GEWINNER ZEIGEN",
             key="mod_show_winner",
             disabled=(winner is None),
-            on_click=_mod_show_winner,
+            on_click=_mod_show_early if source == "einzige" else _mod_show_winner,   # einzige Katze: als Gewinner festschreiben
             args=(tag, cat, label, winner),
             use_container_width=True,
         )

@@ -9,6 +9,7 @@ from core.rounds import active_rounds, default_round, round_label, tag_of
 from core.bis import cat_status, set_manual_ready
 from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
 from core.gate import cat_key, get_bis_order, get_bis_start, set_bis_start, get_show_day, is_open as is_cat_open, set_bis_order
+import core.autonext as autonext
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
 
@@ -22,6 +23,7 @@ def render():
         store.save_backup()
 
     def _live_vote_changed(widget_key, cat, label, tag):
+        autonext.cancel(store, save=False)   # Handarbeit des Admins hat Vorrang vor der Automatik
         if st.session_state[widget_key]:
             store.data["test_live_cat"] = cat
             store.data["test_live_label"] = label
@@ -38,6 +40,20 @@ def render():
     # Aktualisiert das Admin-Panel alle 2000 Millisekunden (2 Sekunden) von selbst.
     # Da wir nur das RAM abfragen, ist das extrem performant und flackerfrei!
     st_autorefresh(interval=2000, key="live_admin_auto_refresh")
+    autonext.process(store)   # faelligen automatischen Klassenwechsel ausfuehren
+
+    def _winner_changed(store_key, widget_key, _tag, _cat, _label):
+        store.data[store_key] = st.session_state[widget_key]
+        if st.session_state[widget_key]:
+            _df = load_labels()
+            _one = autonext.single_nominee(_df, _tag, _cat, _label) if _df is not None else None
+            _ovk = f"override_{_tag}_{_cat}_{_label}"
+            if _one and store.data.get(_ovk, "Automatisch (Stimmen)") == "Automatisch (Stimmen)":
+                store.data[_ovk] = _one    # einzige nominierte Katze = Gewinnerin
+            autonext.schedule(store, _tag, _cat, _label)
+        else:
+            autonext.cancel(store, save=False)
+        store.save_backup()
 
     display_header_with_logo("👑 BIS Admin Control")
     df_full = load_labels()
@@ -127,6 +143,48 @@ def render():
             st.caption("Aktuell: " + " ➜ ".join(f"Kat {c}" for c in _cur_order))
         st.button("➡️ Nächste Kategorie (nach dieser Reihenfolge)", key=f"next_cat_{admin_tag}", on_click=_next_cat)
 
+        # --- Automatik: nach «Gewinner zeigen» zur naechsten Klasse weiterschalten ---
+        def _auto_cfg_changed():
+            autonext.set_cfg(store, enabled=st.session_state["bis_auto_cb"], delay=st.session_state["bis_auto_delay"])
+        def _goto_live():
+            _t, _c = store.data.get("test_live_tag"), store.data.get("test_live_cat")
+            if _t and _c is not None:
+                st.session_state["admin_round_selector"] = int(str(_t).split()[-1])
+                st.session_state[f"admin_sel_cat_{_t}"] = _c
+        def _jump_now():
+            autonext.jump_to_next(store, df_full)
+        def _cancel_pending():
+            autonext.cancel(store)
+        _cfg = autonext.get_cfg(store)
+        _lt, _lc, _ll = store.data.get("test_live_tag"), store.data.get("test_live_cat"), store.data.get("test_live_label")
+        with st.container(border=True):
+            st.markdown("**🔁 Automatik: nächste Klasse für die Richter**")
+            if _lc is not None and _ll:
+                st.info(f"👩‍⚖️ Die Richter sehen jetzt: **{round_label(int(str(_lt).split()[-1]))} · Kategorie {_lc} · {_ll}**")
+                _on_screen = (str(_lt) == str(admin_tag) and str(_lc).replace('.0', '') == str(sel_cat).replace('.0', ''))
+                if not _on_screen:
+                    st.button("👁️ Zu dieser Klasse springen (hier verwalten)", key="auto_goto_live", on_click=_goto_live)
+            else:
+                st.info("Zurzeit ist für die Richter keine Klasse freigegeben.")
+            _pend = autonext.get_pending(store)
+            if _pend:
+                _tgt = autonext.next_target(store, df_full, _pend["tag"], _pend["cat"], _pend["label"])
+                _rest = max(0, int(float(_pend["due"]) - time.time()))
+                if _tgt:
+                    st.warning(f"⏱️ Wechsel in {_rest} s zu: **Kategorie {_tgt[0]} · {_tgt[1]}**")
+                else:
+                    st.warning("⏱️ Das war die letzte Klasse der BIS-Reihenfolge, danach wird nichts mehr automatisch freigegeben.")
+                st.button("✖ Geplanten Wechsel abbrechen", key="auto_cancel", on_click=_cancel_pending)
+            st.session_state["bis_auto_cb"] = _cfg["enabled"]
+            st.session_state["bis_auto_delay"] = _cfg["delay"]
+            _ca, _cb = st.columns([2, 1])
+            _ca.checkbox("Nach «Gewinner zeigen» automatisch zur nächsten Klasse weiterschalten", key="bis_auto_cb", on_change=_auto_cfg_changed)
+            _cb.number_input("Wartezeit (Sekunden)", min_value=5, max_value=300, step=5, key="bis_auto_delay", on_change=_auto_cfg_changed)
+            st.button("⏭️ Jetzt zur nächsten Klasse", key="auto_jump_now", on_click=_jump_now)
+            st.caption("Reihenfolge: Kitten W/M → Junior W/M → Kastraten W/M → Adult W/M, danach die nächste Kategorie der BIS-Reihenfolge. "
+                       "Klassen ohne nominierte Katzen oder mit schon gezeigtem Gewinner werden übersprungen. "
+                       "Jede Änderung der Häkchen «Diese Klasse für Richter freischalten» von Hand hat Vorrang und bricht den geplanten Wechsel ab.")
+
         if not is_cat_open(store, admin_round, sel_cat):
             st.error(f"🔒 Kategorie {sel_cat} ist in {round_label(admin_round)} ({get_show_day(store)}) nicht freigegeben. Freigabe im Rundenmanager (Kategorien-Freigabe).")
             st.stop()
@@ -212,7 +270,7 @@ def render():
                     # NEU: Anzeige immer aus dem Speicher, geschrieben wird nur bei echtem Klick
                     st.session_state[f"cb2_{key_winner_reveal}"] = store.data.get(key_winner_reveal, False)
                     st.checkbox("BIS Gewinner anzeigen", key=f"cb2_{key_winner_reveal}",
-                                on_change=_store_set, args=(key_winner_reveal, f"cb2_{key_winner_reveal}"))
+                                on_change=_winner_changed, args=(key_winner_reveal, f"cb2_{key_winner_reveal}", admin_tag, sel_cat, label))
 					
                     pool = df_full[(df_full['SELECTION'].astype(str).str.upper() == 'X') & (df_full['KATEGORIE'] == sel_cat) & class_mask(df_full, klassen, geschl)]
                     options = ["Automatisch (Stimmen)"] + sorted(pool['KAT_STR'].unique().tolist())
