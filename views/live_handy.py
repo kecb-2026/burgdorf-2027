@@ -18,8 +18,8 @@ from core.store import get_store
 
 TAG_TEXT = {"Wird gerichtet": ("Am Richtertisch", "#ff9800", "white"),
             "Zum Richten": ("Aufgerufen", "#007bff", "white"),
-            "BIV": ("BIV", "#28a745", "white"),
-            "NOM": ("Nominiert", "#ffc107", "black")}
+            "BIV": ("Zu BIV nach vorne", "#28a745", "white"),
+            "NOM": ("Zur Nomination nach vorne", "#ffc107", "black")}
 
 
 def _by_judge(store, df_full):
@@ -83,12 +83,12 @@ def _by_judge(store, df_full):
     st.caption("Die Anzeige aktualisiert sich automatisch.")
 
 
-def _called_info(store, nr, judge):
+def _called_info(store, nr, judge, use_ts=False):
     """HTML-Zeile 'Aufgerufen um HH:MM (vor N Min.)' oder ''. Ab 10 Min. rot/Warnung."""
     v = store.data.get(f"{nr}|{judge}")
     if not isinstance(v, dict):
         return ""
-    ts = v.get("called_at") or v.get("timestamp") or 0
+    ts = (v.get("timestamp") if use_ts else v.get("called_at")) or v.get("timestamp") or 0
     if not ts:
         return ""
     mins = max(0, int((time.time() - float(ts)) // 60))
@@ -103,12 +103,16 @@ def _called_info(store, nr, judge):
 def _status_of(store, nr, judge):
     v = store.data.get(f"{nr}|{judge}")
     flags = v.get("flags", {}) if isinstance(v, dict) and isinstance(v.get("flags"), dict) else {}
-    if flags.get("Gerichtet"):
-        return "done", "Gerichtet ✔"
     if flags.get("Wird gerichtet"):
         return "table", "Am Richtertisch"
-    if flags.get("Zum Richten"):
+    if flags.get("Zum Richten") and not flags.get("Gerichtet"):
         return "called", "Aufgerufen – bitte zum Richtertisch"
+    if flags.get("BIV"):
+        return "biv", "Bitte für BIV nach vorne"
+    if flags.get("NOM"):
+        return "nom", "Bitte zur Nomination nach vorne"
+    if flags.get("Gerichtet"):
+        return "done", "Gerichtet ✔"
     return "wait", "Noch nicht aufgerufen"
 
 
@@ -144,23 +148,25 @@ def _my_cats(store, df_full):
             kind, text = _status_of(store, nr, judge)
             if is_absent(store, nr, n):
                 kind, text = "absent", "🚫 Als abwesend gemeldet"
-            if kind in ("called", "table"):
+            if kind in ("called", "table", "biv", "nom"):
                 alerts.append((nr, judge, kind))
-            col = {"called": "#d32f2f", "table": "#ff9800", "done": "#2e7d32", "wait": "#555", "absent": "#666"}[kind]
+            col = {"called": "#d32f2f", "table": "#ff9800", "biv": "#d32f2f", "nom": "#d32f2f", "done": "#2e7d32", "wait": "#555", "absent": "#666"}[kind]
             lines.append(
                 f"<div style='margin-top:6px; padding:6px 8px; border-left:8px solid {round_color(n)}; background:{round_tint(n)}; "
                 f"border-radius:6px; text-align:left;'><b>{round_label(n)}</b> · {_h.escape(judge)}<br>"
-                f"<span style='color:{col}; font-weight:bold;'>{text}</span>{_called_info(store, nr, judge) if kind in ('called','table') else ''}</div>")
+                f"<span style='color:{col}; font-weight:bold;'>{text}</span>{_called_info(store, nr, judge, kind in ('biv','nom')) if kind in ('called','table','biv','nom') else ''}</div>")
         cards.append((nr, row, "".join(lines)))
 
     if alerts:
-        txt = " · ".join(f"Katze {nr} ({_h.escape(j)})" for nr, j, _ in alerts)
+        _wo = {"called": "wird aufgerufen – bitte zum Richtertisch", "table": "wird aufgerufen – bitte zum Richtertisch",
+               "biv": "bitte für BIV nach vorne", "nom": "bitte zur Nomination nach vorne"}
+        txt = "<br>".join(f"Katze {nr} ({_h.escape(j)}): {_wo[k]}" for nr, j, k in alerts)
         st.markdown(
             "<style>@keyframes lhblink{50%{opacity:.35}}</style>"
             f"<div style='background:#d32f2f; color:white; border-radius:12px; padding:14px; margin:8px 0 14px 0; text-align:center; "
-            f"font-size:22px; font-weight:900; animation:lhblink 1s linear infinite;'>🔔 {txt}<br>wird aufgerufen – bitte zum Richtertisch!</div>",
+            f"font-size:22px; font-weight:900; animation:lhblink 1s linear infinite;'>🔔 {txt}</div>",
             unsafe_allow_html=True)
-        sig = ",".join(f"{a[0]}{a[2]}" for a in alerts)
+        sig = ",".join(f"{x[0]}{x[2]}" for x in alerts)
         st.components.v1.html(
             "<script>try{navigator.vibrate&&navigator.vibrate([400,200,400,200,400]);}catch(e){}"
             "try{var c=new (window.AudioContext||window.webkitAudioContext)();var o=c.createOscillator();o.frequency.value=880;"
