@@ -3,7 +3,7 @@
 import streamlit as st
 from core.config import LOGO_URL
 from core.ui import set_view
-from core.access import password_for
+from core.access import password_for, login_params
 
 
 def render():
@@ -47,15 +47,15 @@ def render():
     if st.button("Anmelden"):
         if role_input == "Admin" and password == password_for("Admin"):
             st.session_state.user_role, st.session_state.authenticated = "Admin", True
-            st.query_params.update(auth="true", role="Admin") 
+            st.query_params.update(login_params("Admin")) 
             set_view("Home")
         elif role_input == "Steward" and password == password_for("Steward"):
             st.session_state.user_role, st.session_state.authenticated = "Steward", True
-            st.query_params.update(auth="true", role="Steward") 
+            st.query_params.update(login_params("Steward")) 
             set_view("Steward_Panel")
         elif role_input == "Richter" and password == password_for("Richter"):
             st.session_state.user_role, st.session_state.authenticated = "Richter", True
-            st.query_params.update(auth="true", role="Richter") 
+            st.query_params.update(login_params("Richter")) 
             set_view("Judge_Voting")
         else:
             st.error("Passwort ungültig.")
