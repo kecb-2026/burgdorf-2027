@@ -32,6 +32,7 @@ VIEWS = {
     "QR_Codes_Gen": "views.qr_codes_gen",
     "Nominated_Cats": "views.nominated_cats",
     "Admin_Panel": "views.admin_panel",
+    "Check": "views.check",
     "Rundenmanager": "views.rundenmanager",
     "Judge_List": "views.judge_list",
     "Judge List": "views.judge_list",
