@@ -183,7 +183,7 @@ def render():
             r_cols = st.columns([0.8] + [1.2]*len(judges))
             r_cols[0].markdown(f"<div class='class-label-box'>{label}</div>", unsafe_allow_html=True)
             
-            show_noms = store.data.get(f"reveal_{tag}_{sel_cat}_{label}", False)
+            show_noms = store.data.get(f"reveal_{tag}_{sel_cat}_{label}", True)
             winner_revealed = store.data.get(f"winner_reveal_{tag}_{sel_cat}_{label}", False)
 
             # --- GEWINNER-KATZENNUMMER VORAB ERMITTELN ---

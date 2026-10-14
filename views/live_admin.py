@@ -296,7 +296,7 @@ def render():
             store.save_backup()
 
         _labels_all = [d[0] for d in bis_defs]
-        _n_on = sum(1 for _l in _labels_all if store.data.get(f"reveal_{admin_tag}_{sel_cat}_{_l}", False))
+        _n_on = sum(1 for _l in _labels_all if store.data.get(f"reveal_{admin_tag}_{sel_cat}_{_l}", True))
         st.markdown("<style>.alle-nom-btn div.stButton > button { height: 70px; font-size: 22px; font-weight: 900; }</style>", unsafe_allow_html=True)
         st.markdown("<div class='alle-nom-btn'>", unsafe_allow_html=True)
         _c1, _c2 = st.columns([2, 1])
@@ -328,7 +328,7 @@ def render():
                     
                     # Interaktionen abfangen und geänderte Zustände direkt persistieren (ohne Rerun-Konflikt)
                     # NEU: Anzeige immer aus dem Speicher, geschrieben wird nur bei echtem Klick
-                    st.session_state[f"cb1_{key_reveal}"] = store.data.get(key_reveal, False)
+                    st.session_state[f"cb1_{key_reveal}"] = store.data.get(key_reveal, True)
                     st.checkbox("Nominationen anzeigen", key=f"cb1_{key_reveal}",
                                 on_change=_store_set, args=(key_reveal, f"cb1_{key_reveal}"))
                     
