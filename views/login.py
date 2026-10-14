@@ -3,6 +3,7 @@
 import streamlit as st
 from core.config import LOGO_URL
 from core.ui import set_view
+from core.access import password_for
 
 
 def render():
@@ -44,15 +45,15 @@ def render():
     password = st.text_input("Passwort:", type="password")
     
     if st.button("Anmelden"):
-        if role_input == "Admin" and password == "admin2026":
+        if role_input == "Admin" and password == password_for("Admin"):
             st.session_state.user_role, st.session_state.authenticated = "Admin", True
             st.query_params.update(auth="true", role="Admin") 
             set_view("Home")
-        elif role_input == "Steward" and password == "steward2026":
+        elif role_input == "Steward" and password == password_for("Steward"):
             st.session_state.user_role, st.session_state.authenticated = "Steward", True
             st.query_params.update(auth="true", role="Steward") 
             set_view("Steward_Panel")
-        elif role_input == "Richter" and password == "judge2026":
+        elif role_input == "Richter" and password == password_for("Richter"):
             st.session_state.user_role, st.session_state.authenticated = "Richter", True
             st.query_params.update(auth="true", role="Richter") 
             set_view("Judge_Voting")

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Ansicht: Nominated_Cats"""
 from io import BytesIO
+from core.access import key_param
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -230,7 +231,7 @@ def render():
                             # Reines Ersetzen der Leerzeichen durch ein + (Sonderzeichen bleiben wie sie sind)
                             base_url = BASE_URL
                             judge_param = str(selected_judge).replace(' ', '+')
-                            test_live_url = f"{base_url}?view=test-live-voting&auth=true&role=Richter&judge={judge_param}&day={day_num}"
+                            test_live_url = f"{base_url}?view=test-live-voting&auth=true&role=Richter&judge={judge_param}&day={day_num}{key_param()}"
 
                             qr = qrcode.QRCode(version=1, box_size=10, border=4)
                             qr.add_data(test_live_url)

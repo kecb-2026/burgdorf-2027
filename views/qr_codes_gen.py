@@ -13,6 +13,7 @@ from reportlab.platypus import Table
 from reportlab.platypus import TableStyle
 import qrcode
 import streamlit as st
+from core.access import key_param, key_required
 from core.config import BASE_URL, SHOW_YEAR
 from core.data import load_labels
 from core.rounds import all_judges
@@ -58,7 +59,7 @@ def render():
         
         # --- FIX: ADMIN DIREKT ZEICHNEN (Nicht im 3er-Raster der Richter!) ---
         story.append(Paragraph("1. Allgemeine Logins und Admins", section_style))
-        adm_url = f"{base_url}?view=admin&auth=true&role=Admin"
+        adm_url = f"{base_url}?view=admin&auth=true&role=Admin{key_param()}"
         
         qr = qrcode.QRCode(version=1, box_size=4, border=1)
         qr.add_data(adm_url)
@@ -82,9 +83,9 @@ def render():
         if df is not None:
             for judge in all_judges(df):
                 jp = judge.replace(' ', '+')
-                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={jp}"
+                stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={jp}{key_param()}"
                 all_qr_items.append((f"Steward fuer: {judge}", stew_url, "2. Steward-Links (alle Runden)"))
-                j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={jp}"
+                j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={jp}{key_param()}"
                 all_qr_items.append((f"Richter: {judge}", j_url, "3. Richter-Direkt-Links (alle Runden)"))
         
         # --- Grid im PDF generieren ---
@@ -159,13 +160,20 @@ def render():
     tab1, tab2, tab3 = st.tabs(["🤵 Stewards & Admins", "👨‍⚖️ Richter", "📱 Aussteller (Handy)"])
     judges_alle = all_judges(df_full) if df_full is not None else []
     
+    if key_required():
+        st.success("🔒 Zugriffsschutz aktiv: Die Admin-, Steward- und Richter-QR-Codes enthalten den geheimen Schlüssel. "
+                   "Die Aussteller-Codes brauchen keinen.")
+    else:
+        st.error("⚠️ Kein Zugriffsschutz: In den Streamlit-Secrets fehlt ACCESS_KEY. Die Codes funktionieren zwar, "
+                 "aber jeder, der die Adresse kennt, kommt als Admin hinein. Siehe Anleitung (ANLEITUNG_ZUGRIFF.md).")
+
     # ---------------- TAB 1: STEWARDS & ADMINS ----------------
     with tab1:
         st.subheader("Allgemeine Logins")
         col_adm, _ = st.columns(2)
         with col_adm:
             st.warning("⚙️ ADMIN MAIN HOME")
-            adm_url = f"{base_url}?view=admin&auth=true&role=Admin"
+            adm_url = f"{base_url}?view=admin&auth=true&role=Admin{key_param()}"
             st.image(generate_qr_image(adm_url), width=230)
             st.caption(f"[Link kopieren]({adm_url})")
             
@@ -178,7 +186,7 @@ def render():
             for idx, judge in enumerate(judges_alle):
                 with s_cols[idx % 3]:
                     st.info(f"Steward für: {judge}")
-                    stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}"
+                    stew_url = f"{base_url}?view=steward&auth=true&role=Steward&judge={judge.replace(' ', '+')}{key_param()}"
                     st.image(generate_qr_image(stew_url), width=200)
                     st.write("---")
         else:
@@ -192,7 +200,7 @@ def render():
             for idx, judge in enumerate(judges_alle):
                 with j_cols[idx % 3]:
                     st.success(f"Richter: {judge}")
-                    j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}"
+                    j_url = f"{base_url}?view=live-voting&auth=true&role=Richter&judge={judge.replace(' ', '+')}{key_param()}"
                     st.image(generate_qr_image(j_url), width=200)
                     st.write("---")
         else:
@@ -202,7 +210,7 @@ def render():
     with tab3:
         st.subheader("Aussteller-Ansicht (ohne Login)")
         st.write("Ein allgemeiner QR-Code mit Richter-Auswahl und je ein QR-Code pro Richter (z. B. am Richtertisch aufhängen).")
-        g_url = f"{base_url}?view=live"
+        g_url = f"{base_url}?view=live&embed=true"
         st.info("Allgemein (Richter selbst wählen)")
         st.image(generate_qr_image(g_url), width=230)
         st.caption(f"[Link kopieren]({g_url})")
@@ -212,7 +220,7 @@ def render():
             for idx, judge in enumerate(judges_alle):
                 with a_cols[idx % 3]:
                     st.info(f"Aussteller: {judge}")
-                    a_url = f"{base_url}?view=live&judge={judge.replace(' ', '+')}"
+                    a_url = f"{base_url}?view=live&embed=true&judge={judge.replace(' ', '+')}"
                     st.image(generate_qr_image(a_url), width=200)
                     st.write("---")
 
