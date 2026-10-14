@@ -38,6 +38,10 @@ def render():
         store.save_backup()
 
     def _live_vote_changed(widget_key, cat, label, tag):
+        # Schutz: Unmittelbar nach einem automatischen Wechsel melden aeltere Browser-Seiten manchmal noch den
+        # alten Haken. Das darf den Wechsel nicht rueckgaengig machen.
+        if time.time() - float(store.data.get("live_auto_ts", 0) or 0) < 8:
+            return
         autonext.cancel(store, save=False)   # Handarbeit des Admins hat Vorrang vor der Automatik
         if st.session_state[widget_key]:
             store.data["test_live_cat"] = cat
@@ -92,6 +96,11 @@ def render():
 
         if "admin_round_selector" not in st.session_state:
             st.session_state["admin_round_selector"] = _std if _std in _runden else _runden[0]
+        # Wechselt die laufende Kategorie (Automatik, andere Admin-Seite, 'Naechste Kategorie'), folgt diese Ansicht wieder
+        _seen = (store.data.get("test_live_tag"), cat_key(store.data.get("test_live_cat")) if store.data.get("test_live_cat") is not None else None)
+        if "seen_live_pos" in st.session_state and st.session_state["seen_live_pos"] != _seen and _seen[1] is not None:
+            st.session_state["admin_pinned"] = False
+        st.session_state["seen_live_pos"] = _seen
         # Die verwaltete Runde/Kategorie folgt der laufenden Klasse (Richter), solange man nicht von Hand etwas anderes gewaehlt hat
         if not st.session_state.get("admin_pinned", False):
             _lp = _live_position(store, df_full)
@@ -209,7 +218,17 @@ def render():
             _val = [o for o in _opts if str(o).replace(".0", "") == _nxt][0]
             st.session_state[f"admin_sel_cat_{_tag}"] = _val
             st.session_state["admin_pinned"] = True
+            # Die Richter wechseln mit: erste Klasse der neuen Kategorie mit nominierten Katzen wird freigegeben
+            _tgt = autonext.next_target(store, df_full, _tag, _val, "")
+            if _tgt is not None and cat_key(_tgt[0]) == _nxt:
+                store.data["test_live_tag"] = _tag
+                store.data["test_live_cat"] = _tgt[0].item() if hasattr(_tgt[0], "item") else _tgt[0]
+                store.data["test_live_label"] = _tgt[1]
+                autonext.cancel(store, save=False)
+                store.data["live_auto_ts"] = time.time()
+                st.session_state["admin_pinned"] = False
             _push_to_bis_screen(_tag)
+            store.save_backup()
         _raw = store.data.get("bis_order")
         _raw = _raw.get(admin_tag) if isinstance(_raw, dict) else None
         if _ord_key not in st.session_state:
