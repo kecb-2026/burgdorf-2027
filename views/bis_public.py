@@ -6,28 +6,28 @@ import streamlit as st
 import time
 from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
-from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
+from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL, BALLOON_STYLE
 from core.data import class_mask
 from core.gate import cat_key, get_bis_order
 from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
 
 
-def _balloons_html(n=18):
+def _balloons_html(n=14):
     """Bunte Ballone, die einmalig von unten nach oben ueber den Bildschirm steigen (reines CSS, ueber dem Overlay)."""
     import random
     rnd = random.Random(2027)
     css = """<style>
     @keyframes kecb-rise { 0% {transform: translateY(0) rotate(-5deg); opacity: 0;}
-        6% {opacity: 1;} 50% {transform: translateY(-65vh) rotate(5deg);} 100% {transform: translateY(-130vh) rotate(-4deg); opacity: 1;} }
-    .kecb-balloon { position: fixed; bottom: -160px; z-index: 10000000; pointer-events: none;
+        6% {opacity: 1;} 50% {transform: translateY(-75vh) rotate(5deg);} 100% {transform: translateY(-150vh) rotate(-4deg); opacity: 1;} }
+    .kecb-balloon { position: fixed; bottom: -300px; z-index: 10000000; pointer-events: none;
         animation: kecb-rise var(--d) ease-in var(--w) 1 both; font-size: var(--s); filter: hue-rotate(var(--h)); line-height: 1; }
     </style>"""
     parts = []
     for i in range(n):
-        left = rnd.randint(2, 94)
-        dur = round(rnd.uniform(5.5, 9.5), 1)
+        left = rnd.randint(0, 90)
+        dur = round(rnd.uniform(6.5, 10.5), 1)
         wait = round(rnd.uniform(0, 3.5), 1)
-        size = rnd.randint(64, 120)
+        size = rnd.randint(150, 260)
         hue = rnd.choice([0, 40, 90, 160, 210, 280, 320])
         parts.append(f'<div class="kecb-balloon" style="left:{left}%; --d:{dur}s; --w:{wait}s; --s:{size}px; --h:{hue}deg;">🎈</div>')
     return css + "".join(parts)
@@ -48,8 +48,16 @@ def render():
         else:
             # Overlay-HTML rendern (bleibt jetzt komplett stabil ohne Sekundentakt-Flackern)
             st.markdown(render_overlay_html(store.active_overlay), unsafe_allow_html=True)
-            # Ballone steigen sofort mit dem Overlay auf (liegen ueber dem Overlay)
-            st.markdown(_balloons_html(), unsafe_allow_html=True)
+            # Ballone steigen sofort mit dem Overlay auf
+            if BALLOON_STYLE == "streamlit":
+                # Eingebaute Streamlit-Ballone, einmal je Overlay und Bildschirm, ueber das Overlay geholt
+                if st.session_state.get("bis_ov_balloons") != store.overlay_start_time:
+                    st.session_state["bis_ov_balloons"] = store.overlay_start_time
+                    st.markdown('<style>[data-testid="stBalloons"], .stBalloons { z-index: 2147483000 !important; }</style>',
+                                unsafe_allow_html=True)
+                    st.balloons()
+            else:
+                st.markdown(_balloons_html(), unsafe_allow_html=True)
             
             # Löst exakt nach der verbleibenden Restzeit (in Millisekunden) genau einmal aus
             remaining_ms = int(remaining * 1000)
