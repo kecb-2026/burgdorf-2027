@@ -5,6 +5,7 @@ In den Streamlit-Secrets steht:   ACCESS_KEY = "ein-langer-zufaelliger-text"
 Optional (eigene Passwoerter fuer die Anmeldung per Passwort):
     PW_ADMIN = "..."   PW_STEWARD = "..."   PW_RICHTER = "..."
 Ist ACCESS_KEY nicht gesetzt, gilt der alte Zustand (Links mit auth=true funktionieren ohne Schluessel)."""
+import hashlib
 import hmac
 from urllib.parse import quote
 
@@ -49,3 +50,31 @@ def password_for(role):
 
 def using_default_passwords():
     return not all(_secret(n) for n in ("PW_ADMIN", "PW_STEWARD", "PW_RICHTER"))
+
+
+def token_for(role):
+    """Aus dem Schluessel abgeleiteter Anmelde-Token fuer eine Rolle (verraet den Schluessel nicht). '' ohne Schluessel."""
+    k = access_key()
+    if not k:
+        return ""
+    return hmac.new(k.encode("utf-8"), f"role:{role}".encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+
+
+def login_params(role):
+    """URL-Parameter nach erfolgreicher Anmeldung per Passwort (Anmeldung bleibt nach Neustart/Reload erhalten)."""
+    p = {"auth": "true", "role": role}
+    t = token_for(role)
+    if t:
+        p["tok"] = t
+    return p
+
+
+def auth_ok(params):
+    """Darf die URL (auth=true&role=...) anmelden? Mit Schluessel (QR-Link) oder mit Token (Passwort-Anmeldung)."""
+    if not key_required():
+        return True
+    if key_valid(params.get("key", "")):
+        return True
+    role = str(params.get("role", ""))
+    tok = str(params.get("tok", ""))
+    return role in _DEFAULT_PW and bool(tok) and hmac.compare_digest(tok.encode("utf-8"), token_for(role).encode("utf-8"))
