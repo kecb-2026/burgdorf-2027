@@ -224,7 +224,7 @@ def render():
 
         for label, klassen, geschl in bis_defs:
             # Der Expander-Key wird tagesabhängig, damit der Auf-/Zuklapp-Status nicht vermischt wird
-            with st.expander(f"KLASSE: {label} ({round_label(admin_round)})", expanded=True):
+            with st.expander(f"**Kategorie {str(sel_cat).replace('.0', '')}** · {label} · {round_label(admin_round)}", expanded=True):
                 c_ctrl, c_votes = st.columns([1, 1.2])
                 
                 # Der v_prefix enthält jetzt den Tag, damit die Stimmen von Tag 1 und Tag 2 getrennt gesucht werden
