@@ -48,6 +48,8 @@ def render():
             st.query_params.update({"view": "admin", "auth": "true", "role": "Admin"})
             set_view("Admin_Panel")
             st.rerun()
+        if st.button("🩺 CHECK (VOR DER SHOW)"):
+            set_view("Check")
         if st.button("⚙️ EXCEL-UPLOAD"):
             st.query_params.update({"view": "excel-upload", "auth": "true", "role": "Admin"})
             set_view("Excel_Upload")

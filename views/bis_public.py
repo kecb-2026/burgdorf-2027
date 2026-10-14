@@ -35,6 +35,11 @@ def render():
             # Verhindert, dass der Rest der Seite unter dem Overlay gerendert wird!
             st.stop()
 
+    # Ballone, sobald ein Gewinner neu gezeigt wird (nicht bei bereits gezeigten Gewinnern beim Oeffnen der Seite)
+    _seen_first = "bis_seen_winners" not in st.session_state
+    _seen = st.session_state.setdefault("bis_seen_winners", set())
+    _fire_balloons = False
+
     def get_initials(name):
         parts = str(name).split()
         if len(parts) >= 2:
@@ -151,6 +156,14 @@ def render():
             
             show_noms = store.data.get(f"reveal_{tag}_{sel_cat}_{label}", False)
             winner_revealed = store.data.get(f"winner_reveal_{tag}_{sel_cat}_{label}", False)
+            _wkey = f"{tag}|{sel_cat}|{label}"
+            if winner_revealed:
+                if _wkey not in _seen:
+                    _seen.add(_wkey)
+                    if not _seen_first:
+                        _fire_balloons = True
+            else:
+                _seen.discard(_wkey)
 
             # --- GEWINNER-KATZENNUMMER VORAB ERMITTELN ---
             row_winner_nr = None
@@ -210,6 +223,9 @@ def render():
                                 st.markdown(f"<div class='{card_css_class} bis-card'><div class='bis-top'><div class='cat-number'>{kat_nr}</div><div class='cat-details'>{get_full_label(_card)}</div></div>{circles_html}</div>", unsafe_allow_html=True)
                         else: st.markdown("<div class='placeholder-box'>–</div>", unsafe_allow_html=True)
                     else: st.markdown("<div class='placeholder-box'>🔒</div>", unsafe_allow_html=True)
+
+    if _fire_balloons:
+        st.balloons()
 
     # --- SCHALTWEICHE 2: REFRESH NUR LADEN, WENN KEIN OVERLAY AKTIV ---
     if not is_overlay_active:
