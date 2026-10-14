@@ -6,7 +6,7 @@ import streamlit as st
 import time
 from core.data import get_full_label, load_labels, real_judges
 from core.store import get_store
-from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL, BALLOON_STYLE
+from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL, BALLOON_STYLE, BALLOON_LEAD_SECONDS, BALLOON_LEAD_TEXT
 from core.data import class_mask
 from core.gate import cat_key, get_bis_order
 from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
@@ -39,25 +39,28 @@ def render():
     is_overlay_active = hasattr(store, 'active_overlay') and store.active_overlay is not None
     if is_overlay_active:
         elapsed = time.time() - store.overlay_start_time
-        remaining = 20 - elapsed
-        
-        # Prüfen, ob die 20 Sekunden abgelaufen sind
+        lead = BALLOON_LEAD_SECONDS if BALLOON_STYLE == "streamlit" else 0
+        remaining = lead + 20 - elapsed   # Overlay bleibt 20 Sekunden stehen, nach dem Vorlauf der Ballone
+
+        # Prüfen, ob die Zeit abgelaufen ist
         if remaining <= 0:
             store.active_overlay = None
             st.rerun()  
+        elif elapsed < lead:
+            # VORLAUF: nur Ballone (Streamlit), noch kein Gewinner sichtbar
+            if st.session_state.get("bis_ov_balloons") != store.overlay_start_time:
+                st.session_state["bis_ov_balloons"] = store.overlay_start_time
+                st.balloons()
+            if BALLOON_LEAD_TEXT:
+                st.markdown(f"<div style='text-align:center; padding-top:30vh; font-size:3rem; font-weight:bold; color:#1a4a9e;'>{BALLOON_LEAD_TEXT}</div>",
+                            unsafe_allow_html=True)
+            st_autorefresh(interval=max(300, int((lead - elapsed) * 1000)), key="overlay_lead_timer")
+            st.stop()
         else:
             # Overlay-HTML rendern (bleibt jetzt komplett stabil ohne Sekundentakt-Flackern)
             st.markdown(render_overlay_html(store.active_overlay), unsafe_allow_html=True)
-            # Ballone steigen sofort mit dem Overlay auf
-            if BALLOON_STYLE == "streamlit":
-                # Eingebaute Streamlit-Ballone, einmal je Overlay und Bildschirm, ueber das Overlay geholt
-                if st.session_state.get("bis_ov_balloons") != store.overlay_start_time:
-                    st.session_state["bis_ov_balloons"] = store.overlay_start_time
-                    st.markdown('<style>[data-testid="stBalloons"], .stBalloons { z-index: 2147483000 !important; }</style>',
-                                unsafe_allow_html=True)
-                    st.balloons()
-            else:
-                st.markdown(_balloons_html(), unsafe_allow_html=True)
+            if BALLOON_STYLE != "streamlit":
+                st.markdown(_balloons_html(), unsafe_allow_html=True)   # eigene Ballone ueber dem Overlay
             
             # Löst exakt nach der verbleibenden Restzeit (in Millisekunden) genau einmal aus
             remaining_ms = int(remaining * 1000)
