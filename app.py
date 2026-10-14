@@ -57,7 +57,10 @@ if "auth" in q_params and q_params["auth"] == "true" and auth_ok(q_params):
     st.session_state.user_role = q_params.get("role", "Public")
     
        # Falls eine bestimmte Ansicht in der URL steht, diese erzwingen
-    if "view" in q_params:
+    # (nur EINMAL pro Link anwenden, sonst springt jeder Knopf mit set_view() wieder auf die URL-Ansicht zurueck)
+    _sig = (str(q_params.get("view", "")).lower(), str(q_params.get("role", "")))
+    if "view" in q_params and st.session_state.get("url_view_sig") != _sig:
+        st.session_state["url_view_sig"] = _sig
         v_param = q_params["view"].lower()
         if v_param == "steward": st.session_state.view = "Steward_Panel"
        # elif v_param == "richter": st.session_state.view = "Judge_Voting"
