@@ -9,6 +9,11 @@ BASE_URL = "https://kecb2027.streamlit.app/"
 
 LOGO_URL = "logo_kecb.png"
 
+# Ausstellungstage (fuer Alters-Check) und Mindestalter in Monaten
+from datetime import date as _date
+SHOW_DATES = (_date(2027, 10, 9), _date(2027, 10, 10))
+MIN_AGE_MONTHS = 4
+
 FIFe_KLASSEN_NAMEN = {
     1: "1 - PH",
     2: "2 - PH",
@@ -31,7 +36,7 @@ ACCESS_MAP = {
     "Admin": ["Home", "Rundenmanager", "Dashboard", "Steward_Panel", "Live_Voting",
               "BIS_Public", "BIS_Ablauf", "Live_Admin", "Moderator", "Live_Handy",
               "QR_Codes_Gen", "Nominated_Cats", "Nomination_Labels", "Judge_List",
-              "Import_PDF", "Excel_Upload", "Excel_Edit", "Alters_Check", "Admin_Panel"],
+              "Import_PDF", "Excel_Upload", "Excel_Edit", "Alters_Check", "Admin_Panel", "Check"],
 }
 
 # ---------------------------------------------------------------------------

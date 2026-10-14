@@ -78,3 +78,59 @@ def check(df, day1, day2, months=4):
     out = pd.DataFrame(rows)
     out["_n"] = out["Nr."].apply(lambda x: int(x) if str(x).isdigit() else 99999)
     return out.sort_values("_n").drop(columns="_n").reset_index(drop=True)
+
+
+# ---------------------------------------------------------------- Alter passend zur Klasse
+# Klasse 12 (Kitten): 4 bis unter 8 Monate, Klasse 11 (Junior): 8 bis unter 12 Monate.
+CLASS_WINDOWS = {"12": (4, 8), "11": (8, 12)}
+
+
+def class_age_check(df, day1, day2):
+    """DataFrame mit allen Katzen der Klassen 11/12 und Status:
+    OK = an beiden Tagen im Altersfenster, Warnung = nur an einem Tag, Fehler = an keinem Tag, ?? = Datum fehlt."""
+    rows = []
+    for _, r in df.iterrows():
+        k = str(r.get("KLASSE_INTERNAL", r.get("AUSSTELLUNGSKLASSE", ""))).replace(".0", "").strip()
+        if k not in CLASS_WINDOWS:
+            continue
+        lo, hi = CLASS_WINDOWS[k]
+        b = parse_birth(r.get("GEBURTSDATUM"))
+
+        def fits(day):
+            return b is not None and old_enough(b, day, lo) and not old_enough(b, day, hi)
+
+        def why(day):
+            if b is None:
+                return ""
+            if not old_enough(b, day, lo):
+                return f"zu jung (unter {lo} Mon.)"
+            if old_enough(b, day, hi):
+                return f"zu alt (ab {hi} Mon.)"
+            return ""
+
+        f1, f2 = fits(day1), fits(day2)
+        if b is None:
+            status = "❓ Geburtsdatum fehlt/ungültig"
+        elif f1 and f2:
+            status = "✅ OK"
+        elif f1 or f2:
+            status = "⚠️ nur an einem Tag passend"
+        else:
+            status = "❌ passt an keinem Tag"
+        hint = " / ".join(x for x in (why(day1) and f"{day1.strftime('%d.%m.')}: {why(day1)}",
+                                      why(day2) and f"{day2.strftime('%d.%m.')}: {why(day2)}") if x)
+        rows.append({
+            "Nr.": str(r.get("KAT_STR", "")),
+            "Name": str(r.get("NAME", "")),
+            "Klasse": k,
+            "Geboren": b.strftime("%d.%m.%Y") if b else "–",
+            f"Alter {day1.strftime('%d.%m.')}": age_text(b, day1),
+            f"Alter {day2.strftime('%d.%m.')}": age_text(b, day2),
+            "Problem": hint,
+            "Status": status,
+        })
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    out["_n"] = out["Nr."].apply(lambda x: int(x) if str(x).isdigit() else 99999)
+    return out.sort_values("_n").drop(columns="_n").reset_index(drop=True)

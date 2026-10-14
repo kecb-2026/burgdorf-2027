@@ -13,6 +13,41 @@ HANDY_LOCK_KEY = "handy_locked"  # Notausknopf: Handy-Ansicht fuer Aussteller ge
 PROTECTED_KEYS = (ABSENT_KEY, NOM_KEY, GATE_KEY, SHOWDAY_KEY, "bis_order", "bis_start", HANDY_LOCK_KEY, "bis_auto")
 
 
+def _now():
+    """Zeitpunkt des Imports (Schweizer Zeit) als Text 'TT.MM.JJJJ HH:MM'."""
+    from datetime import datetime
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("Europe/Zurich")).strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return datetime.now().strftime("%d.%m.%Y %H:%M")
+
+
+def last_import(store, n):
+    """(abwesend_zeit, nominiert_zeit, abwesend_anzahl, nominiert_anzahl) fuer Runde n.
+    Zeit = letzter Import ('TT.MM.JJJJ HH:MM'), '' = Liste vorhanden, aber ohne Zeitangabe, None = keine Liste."""
+    ab = get_absent(store, n)
+    ab_pdf = [m for m in ab.values() if isinstance(m, dict) and m.get("src") == "pdf"]
+    ab_t = None
+    if ab_pdf:
+        ats = [m.get("at") for m in ab_pdf if m.get("at")]
+        ab_t = max(ats, key=_sort_key) if ats else ""
+    nom = get_nom(store).get(f"TAG {int(n)}")
+    nom_t = None
+    if isinstance(nom, dict) and nom.get("nrs") is not None:
+        nom_t = nom.get("at") or ""
+    return ab_t, nom_t, len(ab_pdf), (len(nom.get("nrs", [])) if isinstance(nom, dict) else 0)
+
+
+def _sort_key(t):
+    try:
+        from datetime import datetime
+        return datetime.strptime(t, "%d.%m.%Y %H:%M")
+    except Exception:
+        from datetime import datetime
+        return datetime.min
+
+
 # ---------------------------------------------------------------- PDF lesen
 def parse_pdf_numbers(file_bytes):
     """Liest ein PDF und liefert (nummern, datum, ignorierte_zeilen).
@@ -69,7 +104,7 @@ def add_absent(store, nrs, n, date=None, src="pdf", replace_pdf=False):
     if replace_pdf:
         cur = {k: v for k, v in cur.items() if v.get("src") != "pdf"}
     for x in nrs:
-        cur[str(x)] = {"date": date or "", "src": src}
+        cur[str(x)] = {"date": date or "", "src": src, "at": _now()}
     allr[tag] = cur
     store.data[ABSENT_KEY] = allr
     store.save_backup()
@@ -93,7 +128,7 @@ def get_nom(store):
 
 def set_nom(store, tag, nrs, date=None):
     cur = dict(get_nom(store))
-    cur[tag] = {"nrs": [str(n) for n in nrs], "date": date or ""}
+    cur[tag] = {"nrs": [str(n) for n in nrs], "date": date or "", "at": _now()}
     store.data[NOM_KEY] = cur
     store.save_backup()
 
