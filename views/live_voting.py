@@ -98,13 +98,11 @@ def render():
             
             # Gewinner-Details aus der Excel-Tabelle auslesen
             winner_details_text = ""
-            winner_owner_text = ""
             if winning_nr and winning_nr != "Automatisch (Stimmen)":
                 w_match = df_full[df_full['KAT_STR'] == str(winning_nr)]
                 if not w_match.empty:
                     w_row = w_match.iloc[0]
                     winner_details_text = get_full_label(w_row)
-                    winner_owner_text = f"{w_row.get('BESITZER VORNAME', '')} {w_row.get('BESITZER NACHNAME', '')}"
             
             # Schicke Goldene Gewinner-Ansicht für die Richter
             st.markdown(
@@ -112,7 +110,6 @@ def render():
                 f"<div style='font-size:16px; font-weight:bold; color:#856404; text-transform:uppercase; letter-spacing:2px;'>🏆 Best in Show Winner 🏆</div>"
                 f"<div style='font-size:65px; font-weight:900; color:#b21f2d; margin:10px 0;'>#{winning_nr}</div>"
                 f"<div style='font-size:22px; font-weight:bold; color:#333; margin-bottom:5px;'>{winner_details_text}</div>"
-                f"<div style='font-size:18px; font-style:italic; color:#555;'>{winner_owner_text}</div>"
                 f"</div>",
                 unsafe_allow_html=True
             )
