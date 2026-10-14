@@ -9,6 +9,11 @@ def inject_global_css():
 
 
 	
+    /* Weniger leerer Platz oben (Streamlit-Standard sind ca. 6rem) */
+    [data-testid="stMainBlockContainer"], .block-container { padding-top: 3rem !important; padding-bottom: 2rem !important; }
+    [data-testid="stSidebarHeader"] { height: 2.5rem !important; min-height: 0 !important; padding-bottom: 0 !important; }
+    [data-testid="stSidebarUserContent"] { padding-top: 0.5rem !important; }
+
     @keyframes blinker { 50% { opacity: 0.1; } }
     @keyframes fadeIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
 
