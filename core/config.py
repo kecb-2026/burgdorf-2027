@@ -60,3 +60,7 @@ DEFAULT_SHOWTYPE = "2027 – 3 Runden (Gelb, Grün, Rot)"
 # Kategorien ohne Klassen (z. B. Hauskatzen): BIS Public zeigt nur eine Zeile "Nominierte Katzen"
 NO_CLASS_CATEGORIES = ("5",)
 NO_CLASS_LABEL = "Nominierte Katzen"
+
+
+# Ballone beim Gewinner-Overlay (BIS Public): "streamlit" = eingebaute Ballone, "eigene" = selbst gebaute (liegen sicher ueber dem Overlay)
+BALLOON_STYLE = "streamlit"

@@ -14,6 +14,8 @@ def logout():
 
 
 def display_header_with_logo(text):
+    import re as _re
+    text = _re.sub(r"^[^\w<]+", "", str(text)).strip() or str(text)   # Emojis/Symbole vor dem Titel weglassen
     col_text, col_logo = st.columns([5, 1]) 
     with col_text:
         st.markdown(f"<p class='header-text'>{text}</p>", unsafe_allow_html=True)
