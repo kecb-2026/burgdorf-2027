@@ -139,6 +139,7 @@ def jump_to_next(store, df=None):
     store.data["test_live_tag"] = tag
     store.data["test_live_cat"] = ncat
     store.data["test_live_label"] = nlabel
+    store.data["live_auto_ts"] = time.time()   # Zeitpunkt des Wechsels (Schutz vor veralteten Haken in Admin-Seiten)
     if store.data.get("bis_follow"):
         store.data["bis_public_tag"] = tag
         store.data["bis_public_cat"] = ncat
