@@ -64,3 +64,7 @@ NO_CLASS_LABEL = "Nominierte Katzen"
 
 # Ballone beim Gewinner-Overlay (BIS Public): "streamlit" = eingebaute Ballone, "eigene" = selbst gebaute (liegen sicher ueber dem Overlay)
 BALLOON_STYLE = "streamlit"
+# Vorlauf: so viele Sekunden laufen nur die Streamlit-Ballone, danach erscheint das Gewinner-Overlay
+BALLOON_LEAD_SECONDS = 5
+# Text waehrend des Vorlaufs (leer lassen = nur Ballone auf leerer Seite)
+BALLOON_LEAD_TEXT = "Und der Gewinner ist …"
