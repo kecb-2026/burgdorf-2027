@@ -50,7 +50,8 @@ VIEWS = {
 q_params = st.query_params
 
 # 1. Prüfen, ob Zugangsdaten direkt in der URL stecken (Erzwingt das Login bei jedem Rerun)
-if "auth" in q_params and q_params["auth"] == "true":
+from core.access import key_valid
+if "auth" in q_params and q_params["auth"] == "true" and key_valid(q_params.get("key", "")):
     st.session_state.authenticated = True
     st.session_state.user_role = q_params.get("role", "Public")
     
