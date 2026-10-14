@@ -5,13 +5,28 @@ import pandas as pd
 import streamlit as st
 import time
 from core.data import class_mask, load_labels
-from core.rounds import active_rounds, default_round, round_label, tag_of
+from core.rounds import active_rounds, default_round, round_label, round_color, round_on_color, tag_of
 from core.bis import cat_status, set_manual_ready
 from core.config import NO_CLASS_CATEGORIES, NO_CLASS_LABEL
 from core.gate import cat_key, get_bis_order, get_bis_start, set_bis_start, get_show_day, is_open as is_cat_open, set_bis_order
 import core.autonext as autonext
 from core.store import get_store
 from core.ui import display_header_with_logo, set_view
+
+
+def _live_position(store, df):
+    """(Rundenzahl, Kategorie-Option aus dem Excel) der aktuell fuer die Richter freigegebenen Klasse oder None."""
+    _t, _c = store.data.get("test_live_tag"), store.data.get("test_live_cat")
+    if not _t or _c is None or df is None:
+        return None
+    try:
+        _n = int(str(_t).split()[-1])
+    except ValueError:
+        return None
+    for o in sorted(df["KATEGORIE"].unique()):
+        if cat_key(o) == cat_key(_c):
+            return _n, o
+    return None
 
 
 def render():
@@ -56,6 +71,7 @@ def render():
         store.save_backup()
 
     display_header_with_logo("👑 BIS Admin Control")
+    _bar = st.container()   # Statuszeile (wird weiter unten gefuellt)
     df_full = load_labels()
     
     if df_full is not None:
@@ -63,6 +79,7 @@ def render():
         _runden = active_rounds(store)
         _std = default_round(store)
         def _round_changed():
+            st.session_state["admin_pinned"] = True   # von Hand gewaehlt: Ansicht bleibt stehen
             # Rundenwechsel: BIS-Bildschirm mitnehmen, falls 'automatisch' eingeschaltet ist
             if store.data.get("bis_follow"):
                 _t = tag_of(st.session_state["admin_round_selector"])
@@ -73,7 +90,16 @@ def render():
                 store.data["bis_public_cat"] = _c.item() if hasattr(_c, "item") else _c
                 store.save_backup()
 
-        admin_round = st.radio("Runde verwalten:", _runden, index=_runden.index(_std) if _std in _runden else 0,
+        if "admin_round_selector" not in st.session_state:
+            st.session_state["admin_round_selector"] = _std if _std in _runden else _runden[0]
+        # Die verwaltete Runde/Kategorie folgt der laufenden Klasse (Richter), solange man nicht von Hand etwas anderes gewaehlt hat
+        if not st.session_state.get("admin_pinned", False):
+            _lp = _live_position(store, df_full)
+            if _lp and _lp[0] in _runden:
+                st.session_state["admin_round_selector"] = _lp[0]
+                st.session_state[f"admin_sel_cat_{tag_of(_lp[0])}"] = _lp[1]
+
+        admin_round = st.radio("Runde verwalten:", _runden,
                                format_func=round_label, horizontal=True, key="admin_round_selector", on_change=_round_changed)
         admin_tag = tag_of(admin_round)
         
@@ -106,13 +132,70 @@ def render():
                 store.data["bis_public_cat"] = None
                 store.save_backup()
                 
-        sel_cat = st.selectbox("Kategorie verwalten:", sorted(df_full['KATEGORIE'].unique()), key=f"admin_sel_cat_{admin_tag}",
-                               on_change=_push_to_bis_screen)
+        def _cat_changed(_tag=admin_tag):
+            st.session_state["admin_pinned"] = True   # von Hand gewaehlt: Ansicht bleibt stehen
+            _push_to_bis_screen(_tag)
+        # Auswahl in der Reihenfolge des BIS; weggelassene Kategorien stehen am Ende
+        _raw_cats = sorted(df_full['KATEGORIE'].unique())
+        _ord_keys = get_bis_order(store, admin_tag, [cat_key(c) for c in _raw_cats])
+        _cat_opts = [o for k in _ord_keys for o in _raw_cats if cat_key(o) == k]
+        _cat_skipped = [o for o in _raw_cats if cat_key(o) not in _ord_keys]
+        _cat_opts += _cat_skipped
+        sel_cat = st.selectbox("Kategorie verwalten (in der Reihenfolge des BIS):", _cat_opts, key=f"admin_sel_cat_{admin_tag}",
+                               format_func=lambda c: cat_key(c) + (" (übersprungen)" if c in _cat_skipped else ""),
+                               on_change=_cat_changed)
         st.session_state["bis_follow_cb"] = bool(store.data.get("bis_follow", False))
         st.checkbox("📺 BIS-Bildschirm folgt automatisch dieser Runde und Kategorie", key="bis_follow_cb", on_change=_follow_changed)
         if store.data.get("bis_follow"):
             st.caption(f"BIS-Bildschirm zeigt: {round_label(int(str(store.data.get('bis_public_tag') or admin_tag).split()[-1]))}, Kategorie {store.data.get('bis_public_cat')}. "
                        "Beim Wechseln der Kategorie oben schaltet er automatisch mit. Häkchen entfernen = Besucher wählen selbst.")
+        def _goto_live_bar():
+            st.session_state["admin_pinned"] = False
+            _lp = _live_position(store, df_full)
+            if _lp:
+                st.session_state["admin_round_selector"] = _lp[0]
+                st.session_state[f"admin_sel_cat_{tag_of(_lp[0])}"] = _lp[1]
+
+        # --- STATUSZEILE: Was verwalte ich / was sehen die Richter / was zeigt der Publikums-Bildschirm ---
+        def _show_pub_mine():
+            store.data["bis_follow"] = True
+            store.data["bis_public_tag"] = admin_tag
+            _cc = st.session_state.get(f"admin_sel_cat_{admin_tag}")
+            store.data["bis_public_cat"] = None if _cc is None else (_cc.item() if hasattr(_cc, "item") else _cc)
+            store.save_backup()
+        def _box(title, n, main, sub=""):
+            _bg, _fg = (round_color(n), round_on_color(n)) if n else ("#e9ecef", "#333")
+            return (f"<div style='background:{_bg}; color:{_fg}; border-radius:12px; padding:10px 14px; min-height:84px;'>"
+                    f"<div style='font-size:13px; font-weight:700; opacity:.9;'>{title}</div>"
+                    f"<div style='font-size:19px; font-weight:900; line-height:1.2;'>{main}</div>"
+                    f"<div style='font-size:12px; opacity:.9;'>{sub}</div></div>")
+        _live_t, _live_c, _live_l = store.data.get("test_live_tag"), store.data.get("test_live_cat"), store.data.get("test_live_label")
+        _live_n = int(str(_live_t).split()[-1]) if _live_t and _live_c is not None else None
+        if store.data.get("bis_follow") and store.data.get("bis_public_tag"):
+            _pub_n = int(str(store.data.get("bis_public_tag")).split()[-1])
+            _pub_main = f"{round_label(_pub_n, with_emoji=False)} · Kategorie {cat_key(store.data.get('bis_public_cat'))}"
+            _pub_sub = "folgt der Auswahl hier"
+        else:
+            _pub_n = _live_n
+            _pub_main = (round_label(_live_n, with_emoji=False) if _live_n else "–") + " · Kategorie nach Wahl"
+            _pub_sub = "Runde folgt den Richtern, Kategorie wählen die Besucher selbst"
+        with _bar:
+            _b1, _b2, _b3 = st.columns(3)
+            _b1.markdown(_box("🛠 Du verwaltest", admin_round, f"{round_label(admin_round, with_emoji=False)} · Kategorie {cat_key(sel_cat)}",
+                              "angeheftet (von Hand gewählt)" if st.session_state.get("admin_pinned") else "folgt den Richtern"), unsafe_allow_html=True)
+            _b2.markdown(_box("👩‍⚖️ Richter sehen", _live_n,
+                              (f"{round_label(_live_n, with_emoji=False)} · Kategorie {cat_key(_live_c)}" if _live_n else "keine Klasse freigegeben"),
+                              (_live_l or "")), unsafe_allow_html=True)
+            _b3.markdown(_box("📺 Publikum-Bildschirm", _pub_n, _pub_main, _pub_sub), unsafe_allow_html=True)
+            _same_live = (_live_n is not None and _live_n == admin_round and cat_key(_live_c) == cat_key(sel_cat))
+            _same_pub = bool(store.data.get("bis_follow")) and str(store.data.get("bis_public_tag")) == str(admin_tag) \
+                and cat_key(store.data.get("bis_public_cat")) == cat_key(sel_cat)
+            if _live_n is not None and not _same_live:
+                st.warning("⚠️ Du verwaltest eine andere Runde/Kategorie, als die Richter gerade sehen.")
+                st.button("↩️ Zurück zur laufenden Kategorie", key="bar_back_live", on_click=_goto_live_bar)
+            if not _same_pub:
+                st.button("📺 Publikum-Bildschirm auf meine Auswahl setzen", key="bar_pub_mine", on_click=_show_pub_mine)
+
         # --- Reihenfolge der Kategorien beim BIS (wird vor der BIS durchgegeben) ---
         _all_cats = [str(c).replace(".0", "") for c in sorted(df_full['KATEGORIE'].unique())]
         _ord_key = f"bis_order_ms_{admin_tag}"
@@ -125,6 +208,7 @@ def render():
             _opts = sorted(df_full['KATEGORIE'].unique())
             _val = [o for o in _opts if str(o).replace(".0", "") == _nxt][0]
             st.session_state[f"admin_sel_cat_{_tag}"] = _val
+            st.session_state["admin_pinned"] = True
             _push_to_bis_screen(_tag)
         _raw = store.data.get("bis_order")
         _raw = _raw.get(admin_tag) if isinstance(_raw, dict) else None
@@ -147,10 +231,11 @@ def render():
         def _auto_cfg_changed():
             autonext.set_cfg(store, enabled=st.session_state["bis_auto_cb"], delay=st.session_state["bis_auto_delay"])
         def _goto_live():
-            _t, _c = store.data.get("test_live_tag"), store.data.get("test_live_cat")
-            if _t and _c is not None:
-                st.session_state["admin_round_selector"] = int(str(_t).split()[-1])
-                st.session_state[f"admin_sel_cat_{_t}"] = _c
+            st.session_state["admin_pinned"] = False
+            _lp = _live_position(store, df_full)
+            if _lp:
+                st.session_state["admin_round_selector"] = _lp[0]
+                st.session_state[f"admin_sel_cat_{tag_of(_lp[0])}"] = _lp[1]
         def _jump_now():
             autonext.jump_to_next(store, df_full)
         def _cancel_pending():
