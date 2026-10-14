@@ -12,6 +12,27 @@ from core.gate import cat_key, get_bis_order
 from core.ui import display_header_with_logo, render_overlay_html, judge_header_html, round_banner
 
 
+def _balloons_html(n=18):
+    """Bunte Ballone, die einmalig von unten nach oben ueber den Bildschirm steigen (reines CSS, ueber dem Overlay)."""
+    import random
+    rnd = random.Random(2027)
+    css = """<style>
+    @keyframes kecb-rise { 0% {transform: translateY(0) rotate(-5deg); opacity: 0;}
+        6% {opacity: 1;} 50% {transform: translateY(-65vh) rotate(5deg);} 100% {transform: translateY(-130vh) rotate(-4deg); opacity: 1;} }
+    .kecb-balloon { position: fixed; bottom: -160px; z-index: 10000000; pointer-events: none;
+        animation: kecb-rise var(--d) ease-in var(--w) 1 both; font-size: var(--s); filter: hue-rotate(var(--h)); line-height: 1; }
+    </style>"""
+    parts = []
+    for i in range(n):
+        left = rnd.randint(2, 94)
+        dur = round(rnd.uniform(5.5, 9.5), 1)
+        wait = round(rnd.uniform(0, 3.5), 1)
+        size = rnd.randint(64, 120)
+        hue = rnd.choice([0, 40, 90, 160, 210, 280, 320])
+        parts.append(f'<div class="kecb-balloon" style="left:{left}%; --d:{dur}s; --w:{wait}s; --s:{size}px; --h:{hue}deg;">🎈</div>')
+    return css + "".join(parts)
+
+
 def render():
     store = get_store()
     # --- SCHALTWEICHE 1: OVERLAY AKTIVIERUNG PRÜFEN ---
@@ -27,6 +48,8 @@ def render():
         else:
             # Overlay-HTML rendern (bleibt jetzt komplett stabil ohne Sekundentakt-Flackern)
             st.markdown(render_overlay_html(store.active_overlay), unsafe_allow_html=True)
+            # Ballone steigen sofort mit dem Overlay auf (liegen ueber dem Overlay)
+            st.markdown(_balloons_html(), unsafe_allow_html=True)
             
             # Löst exakt nach der verbleibenden Restzeit (in Millisekunden) genau einmal aus
             remaining_ms = int(remaining * 1000)
@@ -34,11 +57,6 @@ def render():
             
             # Verhindert, dass der Rest der Seite unter dem Overlay gerendert wird!
             st.stop()
-
-    # Ballone, sobald ein Gewinner neu gezeigt wird (nicht bei bereits gezeigten Gewinnern beim Oeffnen der Seite)
-    _seen_first = "bis_seen_winners" not in st.session_state
-    _seen = st.session_state.setdefault("bis_seen_winners", set())
-    _fire_balloons = False
 
     def get_initials(name):
         parts = str(name).split()
@@ -156,14 +174,6 @@ def render():
             
             show_noms = store.data.get(f"reveal_{tag}_{sel_cat}_{label}", False)
             winner_revealed = store.data.get(f"winner_reveal_{tag}_{sel_cat}_{label}", False)
-            _wkey = f"{tag}|{sel_cat}|{label}"
-            if winner_revealed:
-                if _wkey not in _seen:
-                    _seen.add(_wkey)
-                    if not _seen_first:
-                        _fire_balloons = True
-            else:
-                _seen.discard(_wkey)
 
             # --- GEWINNER-KATZENNUMMER VORAB ERMITTELN ---
             row_winner_nr = None
@@ -223,9 +233,6 @@ def render():
                                 st.markdown(f"<div class='{card_css_class} bis-card'><div class='bis-top'><div class='cat-number'>{kat_nr}</div><div class='cat-details'>{get_full_label(_card)}</div></div>{circles_html}</div>", unsafe_allow_html=True)
                         else: st.markdown("<div class='placeholder-box'>–</div>", unsafe_allow_html=True)
                     else: st.markdown("<div class='placeholder-box'>🔒</div>", unsafe_allow_html=True)
-
-    if _fire_balloons:
-        st.balloons()
 
     # --- SCHALTWEICHE 2: REFRESH NUR LADEN, WENN KEIN OVERLAY AKTIV ---
     if not is_overlay_active:
