@@ -33,6 +33,7 @@ VIEWS = {
     "Nominated_Cats": "views.nominated_cats",
     "Admin_Panel": "views.admin_panel",
     "Check": "views.check",
+    "Hilfe": "views.hilfe",
     "Rundenmanager": "views.rundenmanager",
     "Judge_List": "views.judge_list",
     "Judge List": "views.judge_list",
@@ -153,7 +154,9 @@ st.markdown("""
         </style>
     """, unsafe_allow_html=True)
     
-available_views = ACCESS_MAP.get(st.session_state.user_role, ["Dashboard"])
+available_views = list(ACCESS_MAP.get(st.session_state.user_role, ["Dashboard"]))
+if st.session_state.user_role == "Admin" and "Hilfe" not in available_views:
+    available_views.append("Hilfe")
 st.sidebar.image(LOGO_URL, width=150)
 
 # HIER WURDE format_func HINZUGEFÜGT: Tauscht bei der Anzeige die Unterstriche gegen Leerzeichen
