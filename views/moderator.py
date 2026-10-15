@@ -195,10 +195,10 @@ def render():
         'html body div[data-testid="stHorizontalBlock"] > div:nth-child(n) .st-key-%s.st-key-%s button%s' % (k, k, suf)
         for k in ("mod_show_winner", "mod_show_winner_early"))
     st.markdown("<style>" +
-        _bsel() + "{width:100% !important; min-width:0 !important; height:110px !important; min-height:110px !important; padding:8px 12px !important; "
+        _bsel() + "{width:100% !important; min-width:0 !important; height:68px !important; min-height:68px !important; padding:4px 12px !important; "
         "border-radius:18px !important; background-color:#2e9e4f !important; color:#ffffff !important; border:3px solid #1e7a38 !important; "
         "display:flex !important; align-items:center !important; justify-content:center !important; overflow:hidden !important; animation:none !important;}" +
-        _bsel(" p") + "{font-size:30px !important; font-weight:900 !important; line-height:1.1 !important; white-space:normal !important; "
+        _bsel(" p") + "{font-size:26px !important; font-weight:900 !important; line-height:1.1 !important; white-space:normal !important; "
         "text-align:center !important; margin:0 !important;}" +
         _bsel(":disabled") + "{opacity:.45 !important;}" +
         "</style>", unsafe_allow_html=True)
@@ -232,7 +232,7 @@ def render():
             else:
                 msg = _e(note) if note else "Noch kein Ergebnis."
             st.markdown(
-                f"<div style='background-color:#f1f3f5; padding:14px 18px; border-radius:10px; border:2px dashed #adb5bd; font-size:20px;'>{msg}</div>",
+                f"<div style='background-color:#f1f3f5; padding:6px 18px; border-radius:10px; border:2px dashed #adb5bd; font-size:20px; min-height:68px; box-sizing:border-box; display:flex; align-items:center;'><div>{msg}</div></div>",
                 unsafe_allow_html=True,
             )
             if note.startswith("Gleichstand") and _tb is None and not winner_revealed:
