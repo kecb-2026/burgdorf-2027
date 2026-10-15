@@ -9,6 +9,9 @@ BASE_URL = "https://kecb2027.streamlit.app/"
 
 LOGO_URL = "logo_kecb.png"
 
+# Copyright-Hinweis am Ende der Home-Seite (hier anpassen)
+COPYRIGHT_TEXT = f"© {SHOW_YEAR} KECB Burgdorf · Alle Rechte vorbehalten"
+
 # Ausstellungstage (fuer Alters-Check) und Mindestalter in Monaten
 from datetime import date as _date
 SHOW_DATES = (_date(2027, 10, 9), _date(2027, 10, 10))
@@ -36,7 +39,7 @@ ACCESS_MAP = {
     "Admin": ["Home", "Rundenmanager", "Dashboard", "Steward_Panel", "Live_Voting",
               "BIS_Public", "BIS_Ablauf", "Live_Admin", "Moderator", "Live_Handy",
               "QR_Codes_Gen", "Nominated_Cats", "Nomination_Labels", "Judge_List",
-              "Import_PDF", "Excel_Upload", "Excel_Edit", "Alters_Check", "Admin_Panel", "Check"],
+              "Import_PDF", "Excel_Upload", "Excel_Edit", "Alters_Check", "Admin_Panel", "Check", "Hilfe"],
 }
 
 # ---------------------------------------------------------------------------

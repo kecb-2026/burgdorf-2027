@@ -10,7 +10,7 @@ NOM_KEY = "import_nom"         # {"TAG 1": {"nrs": ["1","5"], "date": "10.10.202
 GATE_KEY = "cat_gate"         # {"Samstag": {"1": ["2","4"], ...}}  = gesperrte Kategorien je Runde
 SHOWDAY_KEY = "show_day"      # "Samstag" | "Sonntag"
 HANDY_LOCK_KEY = "handy_locked"  # Notausknopf: Handy-Ansicht fuer Aussteller gesperrt
-PROTECTED_KEYS = (ABSENT_KEY, NOM_KEY, GATE_KEY, SHOWDAY_KEY, "bis_order", "bis_start", HANDY_LOCK_KEY, "bis_auto")
+PROTECTED_KEYS = (ABSENT_KEY, NOM_KEY, GATE_KEY, SHOWDAY_KEY, "bis_order", "bis_start", HANDY_LOCK_KEY, "bis_auto", "help_texts")
 
 
 def _now():
