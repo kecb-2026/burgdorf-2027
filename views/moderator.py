@@ -264,18 +264,7 @@ def render():
                 st.button(f"{_what} zurücknehmen", key=f"mod_tb_cancel_{tag}_{cat}_{label}",
                           on_click=_mod_cancel_tiebreak, args=(_tb_key, prefix))
     with c_btn:
-        st.button(
-            "🏆 OVERLAY NOCHMALS ZEIGEN" if winner_revealed else "🏆 GEWINNER ZEIGEN",
-            key="mod_show_winner",
-            disabled=(winner is None),
-            on_click=_mod_show_early if source == "einzige" else _mod_show_winner,   # einzige Katze: als Gewinner festschreiben
-            args=(tag, cat, label, winner),
-            use_container_width=True,
-        )
-        if winner_revealed:
-            st.caption("✅ Gewinner ist für Richter und BIS-Screen freigegeben.")
-
-        # --- Zweiter Knopf: vorzeitig zeigen, wenn noch nicht alle bestätigt haben ---
+        # Ein einziger Knopf. Solange noch nicht alle bestaetigt haben, wird er erst mit dem Haken "Vorzeitig" freigeschaltet.
         _early = None
         _show_early = winner is None and not winner_revealed and n_conf < len(judges)
         if _show_early and counts:
@@ -283,20 +272,29 @@ def render():
             _lead = [k for k, c in counts.items() if c == _top]
             if len(_lead) == 1:
                 _early = _lead[0]
+        _ok = bool(st.session_state.get("mod_early_ok", False))
+        if winner is not None or winner_revealed:
+            _disabled, _cb, _args = False, (_mod_show_early if source == "einzige" else _mod_show_winner), (tag, cat, label, winner)
+        elif _show_early:
+            _disabled, _cb, _args = (not _ok) or (_early is None), _mod_show_early, (tag, cat, label, _early)
+        else:
+            _disabled, _cb, _args = True, _mod_show_winner, (tag, cat, label, winner)
+        st.button(
+            "🏆 OVERLAY NOCHMALS ZEIGEN" if winner_revealed else "🏆 GEWINNER ZEIGEN",
+            key="mod_show_winner",
+            disabled=_disabled,
+            on_click=_cb,
+            args=_args,
+            use_container_width=True,
+        )
+        if winner_revealed:
+            st.caption("✅ Gewinner ist für Richter und BIS-Screen freigegeben.")
         if _show_early:
+            st.checkbox("Vorzeitig zeigen (nicht alle bestätigt)", key="mod_early_ok")
             if _early is not None:
-                st.markdown(f"<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorläufig führt <b>#{_e(_early)}</b> mit {counts[_early]} von {n_conf} bestätigten Stimmen ({len(judges) - n_conf} Richter fehlen noch).</div>", unsafe_allow_html=True)
+                st.caption(f"Vorläufig führt #{_early} mit {counts[_early]} von {n_conf} Stimmen ({len(judges) - n_conf} fehlen noch).")
             else:
-                st.markdown("<div style='font-size:15px; color:#856404; margin-top:10px;'>Vorzeitiges Zeigen ist möglich, sobald es eine eindeutig führende Katze gibt.</div>", unsafe_allow_html=True)
-            _ok = st.checkbox("Ich weiss: Es haben noch nicht alle bestätigt. Gewinner trotzdem zeigen.", key="mod_early_ok")
-            st.button(
-                "⚡ GEWINNER JETZT ZEIGEN",
-                key="mod_show_winner_early",
-                disabled=(not _ok) or (_early is None),
-                on_click=_mod_show_early,
-                args=(tag, cat, label, _early),
-                use_container_width=True,
-            )
+                st.caption("Vorzeitig nur möglich, wenn eine Katze eindeutig führt.")
 
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
